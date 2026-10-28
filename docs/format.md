@@ -144,6 +144,7 @@ Counts per row are distinct entries in that row's subtree: an entry linked to tw
 ````markdown
 ```reviewed-db
 db: Learning/Learning log
+view: overview
 filter: missing
 ```
 ````
@@ -151,14 +152,18 @@ filter: missing
 | Key | Required | Value |
 |---|---|---|
 | `db` | no | Path of the database note, with or without `.md`. Default: the note that contains the block. |
-| `filter` | no | Initial filter: `all` (default), `missing` or `drafts`. The overview also has a control to change it. |
+| `view` | no | `overview` (default) or `inbox`. |
+| `filter` | no | Overview only. Initial filter: `all` (default), `missing` or `drafts`. The overview also has a control to change it. |
 
-The overview is read-only in v1:
+Both views are read-only in v1. Text sizes follow the note's font size.
 
-- One collapsible row per group and item, with `Covered` or `Missing`, and counts as `N confirmed · N draft`.
+### Overview
+
+- One collapsible row per group and item, with a `Missing` label when the row is not covered, and counts as `N entries · N drafts`. `entries` counts confirmed entries only; zero counts are left out.
 - Under each item, its linked entries: date, title (links to the entry), status as text.
-- Filters: `missing` shows only rows that are not covered; `drafts` shows only rows with draft entries in their subtree.
-- Warnings, listed above the tree:
+- Summary: how many lowest-level items are missing, and the totals.
+- Filters: `missing` shows only rows that are not covered; `drafts` shows only rows with draft entries in their subtree, and only their draft entries.
+- Warnings, listed above the tree. Messages name entries by date and title and items by text, never by ID:
 
 | Warning | Cause |
 |---|---|
@@ -170,11 +175,23 @@ The overview is read-only in v1:
 | No items | An entry has no item links. |
 | Unresolved link | An `items` link has no `#^id` part. |
 
+### Inbox
+
+For triaging drafts, e.g. in a separate note with `view: inbox`. A table of all `draft` entries, oldest first:
+
+| Column | Shows |
+|---|---|
+| Date | The entry date. |
+| Entry | Title (links to the entry), body rendered as Markdown, other fields as `key: value`. |
+| Items | Per link: current item text (links to the item), its path, and `Text changed`, `No longer exists` or `Not an item` where that applies. |
+
+### Command
+
 The command **Reviewed Entries: Open database** opens a database note; with several databases it asks which one.
 
 ## v2 (planned, not built)
 
-- **Confirm / reject** per entry: rewrites that entry's `status::` line, found by `id`, through `vault.process`.
+- **Confirm / reject** per entry, in the inbox and the overview: rewrites that entry's `status::` line, found by `id`, through `vault.process`.
 - **Re-link** per entry: an item picker (search over item text and its path) replaces the `items::` line.
 - **Manual entry**: a form with date, title, body and a searchable multi-select item picker. Appends an entry with `status:: confirmed` to `entries-folder/YYYY-MM.md`, creating the file if needed.
 

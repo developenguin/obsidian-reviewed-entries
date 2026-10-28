@@ -34,7 +34,8 @@ export interface Item {
 export interface Link {
 	/** Block ID, or null when the link has no `#^id` part. */
 	id: string | null;
-	raw: string;
+	/** Alias, or the link target without the `#^id` part. */
+	text: string;
 }
 
 export interface Entry {
@@ -45,6 +46,8 @@ export interface Entry {
 	status: string;
 	links: Link[];
 	fields: Record<string, string>;
+	/** Lines that are not fields, trimmed. */
+	body: string;
 	path: string;
 	line: number;
 }
@@ -54,6 +57,8 @@ export interface Node {
 	key: string;
 	kind: 'group' | 'item';
 	label: string;
+	/** Labels of the ancestors, outermost first, without the database. */
+	trail: string[];
 	path: string;
 	line: number;
 	textChanged: boolean;
@@ -84,6 +89,9 @@ export interface Warning {
 
 export interface Db {
 	root: Node;
+	itemsById: Map<string, Node>;
+	/** All entries, in file and line order. */
+	entries: Entry[];
 	warnings: Warning[];
 	/** Items without children. */
 	leaves: { covered: number; total: number };
@@ -235,7 +243,7 @@ export function parseItems(text: string): Item[] {
 const ENTRY_HEADING = /^##[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$/;
 const OTHER_HEADING = /^#[ \t]/;
 const FIELD = /^[ \t]*(?:[-*+][ \t]+)?([A-Za-z][\w-]*)::[ \t]*(.*?)[ \t]*$/;
-const WIKILINK = /\[\[([^\]|]*)(?:\|[^\]]*)?\]\]/g;
+const WIKILINK = /\[\[([^\]|]*)(?:\|([^\]]*))?\]\]/g;
 
 export function parseEntries(path: string, text: string): Entry[] {
 	const entries: Entry[] = [];
@@ -253,6 +261,7 @@ export function parseEntries(path: string, text: string): Entry[] {
 				status: '',
 				links: [],
 				fields: {},
+				body: '',
 				path,
 				line,
 			};
@@ -267,6 +276,10 @@ export function parseEntries(path: string, text: string): Entry[] {
 
 		const field = current && FIELD.exec(content);
 
+		if (current && !field) {
+			current.body += `${content}\n`;
+		}
+
 		if (!current || !field) {
 			continue;
 		}
@@ -277,7 +290,8 @@ export function parseEntries(path: string, text: string): Entry[] {
 
 		if (key === 'items') {
 			for (const link of value.matchAll(WIKILINK)) {
-				current.links.push({ id: /#\^([A-Za-z0-9-]+)$/.exec(link[1])?.[1] ?? null, raw: link[0] });
+				const [target, blockId] = link[1].split('#^');
+				current.links.push({ id: blockId ?? null, text: link[2] ?? target });
 			}
 		}
 	}
@@ -285,6 +299,7 @@ export function parseEntries(path: string, text: string): Entry[] {
 	for (const entry of entries) {
 		entry.id = entry.fields['id'] ?? '';
 		entry.status = (entry.fields['status'] ?? '').toLowerCase();
+		entry.body = entry.body.trim();
 	}
 
 	return entries;
@@ -301,7 +316,7 @@ export function isDbFile(config: DbConfig, path: string): boolean {
 }
 
 function newNode(key: string, kind: Node['kind'], label: string, path: string, line = 0): Node {
-	return { key, kind, label, path, line, textChanged: false, children: [], entries: [], covered: false, confirmed: 0, drafts: 0 };
+	return { key, kind, label, trail: [], path, line, textChanged: false, children: [], entries: [], covered: false, confirmed: 0, drafts: 0 };
 }
 
 /**
@@ -335,14 +350,17 @@ export function buildDb(config: DbConfig, files: SourceFile[]): Db {
 			node.textChanged = item.textChanged;
 			parent.children.push(node);
 
-			if (itemsById.has(item.id)) {
-				warnings.push({ kind: 'Duplicate ID', message: `Item ID ^${item.id} is used more than once.`, path, line: item.line });
+			const first = itemsById.get(item.id);
+
+			if (first) {
+				const message = `"${item.text}" (${parent.label}) has the same ID as "${first.label}"`;
+				warnings.push({ kind: 'Duplicate ID', message, path, line: item.line });
 			} else {
 				itemsById.set(item.id, node);
 			}
 
 			if (item.textChanged) {
-				warnings.push({ kind: 'Text changed', message: `Item text changed: ${item.text}`, path, line: item.line });
+				warnings.push({ kind: 'Text changed', message: `"${item.text}" (${parent.label})`, path, line: item.line });
 			}
 
 			addItems(node, item.children, path);
@@ -379,7 +397,7 @@ export function buildDb(config: DbConfig, files: SourceFile[]): Db {
 		node.path = node.key = folder ? `${config.itemsFolder}/${folder}` : config.itemsFolder;
 	}
 
-	attachEntries(entryFiles, itemsById, warnings);
+	const entries = attachEntries(entryFiles, itemsById, warnings);
 
 	const rank = (node: Node): number => {
 		const index = config.order.findIndex((name) => name === node.label || node.path.endsWith(`/${name}.md`));
@@ -397,49 +415,58 @@ export function buildDb(config: DbConfig, files: SourceFile[]): Db {
 
 	prune(root);
 	sortGroups(root);
-	finish(root, config.coverage);
+	finish(root, config.coverage, null);
 
-	return { root, warnings, leaves: countLeaves(root) };
+	return { root, itemsById, entries, warnings, leaves: countLeaves(root) };
 }
 
-function attachEntries(files: SourceFile[], itemsById: Map<string, Node>, warnings: Warning[]): void {
-	const seenIds = new Set<string>();
+export function entryName(entry: Entry): string {
+	return `${entry.date} ${entry.title}`.trim() || 'Untitled entry';
+}
+
+function attachEntries(files: SourceFile[], itemsById: Map<string, Node>, warnings: Warning[]): Entry[] {
+	const entries: Entry[] = [];
+	const byId = new Map<string, Entry>();
 
 	for (const file of files) {
 		for (const entry of parseEntries(file.path, file.text)) {
 			const where = { path: entry.path, line: entry.line };
-			const name = entry.title || entry.date || 'Untitled entry';
+			const name = entryName(entry);
+			const first = byId.get(entry.id);
+			entries.push(entry);
 
 			if (!entry.id) {
-				warnings.push({ kind: 'Missing ID', message: `Entry has no id: ${name}`, ...where });
-			} else if (seenIds.has(entry.id)) {
-				warnings.push({ kind: 'Duplicate ID', message: `Entry ID ${entry.id} is used more than once: ${name}`, ...where });
+				warnings.push({ kind: 'Missing ID', message: `${name} has no id`, ...where });
+			} else if (first) {
+				warnings.push({ kind: 'Duplicate ID', message: `${name} has the same id as ${entryName(first)}`, ...where });
+			} else {
+				byId.set(entry.id, entry);
 			}
-
-			seenIds.add(entry.id);
 
 			if (!(STATUSES as readonly string[]).includes(entry.status)) {
 				const status = entry.status ? `status "${entry.status}"` : 'no status';
-				warnings.push({ kind: 'Invalid status', message: `Entry has ${status}: ${name}`, ...where });
+				warnings.push({ kind: 'Invalid status', message: `${name} has ${status}`, ...where });
 			}
 
 			if (!entry.links.length) {
-				warnings.push({ kind: 'No items', message: `Entry links to no items: ${name}`, ...where });
+				warnings.push({ kind: 'No items', message: `${name} links to no items`, ...where });
 			}
 
 			for (const link of entry.links) {
 				const node = link.id === null ? undefined : itemsById.get(link.id);
 
 				if (link.id === null) {
-					warnings.push({ kind: 'Unresolved link', message: `Link has no block ID: ${link.raw} in ${name}`, ...where });
+					warnings.push({ kind: 'Unresolved link', message: `${name} links to "${link.text}", which is not an item`, ...where });
 				} else if (!node) {
-					warnings.push({ kind: 'Broken link', message: `No item with ID ^${link.id}: ${link.raw} in ${name}`, ...where });
+					warnings.push({ kind: 'Broken link', message: `${name} links to "${link.text}", which no longer exists`, ...where });
 				} else if (!node.entries.includes(entry)) {
 					node.entries.push(entry);
 				}
 			}
 		}
 	}
+
+	return entries;
 }
 
 /** Drop groups without items. Returns whether the node stays. */
@@ -449,12 +476,15 @@ function prune(node: Node): boolean {
 	return node.children.length > 0;
 }
 
-/** Fill covered and counts. Returns the distinct entries in the subtree. */
-function finish(node: Node, rule: DbConfig['coverage']): Set<Entry> {
+/** Fill trail, covered and counts. Returns the distinct entries in the subtree. */
+function finish(node: Node, rule: DbConfig['coverage'], trail: string[] | null): Set<Entry> {
 	const subtree = new Set(node.entries);
+	node.trail = trail ?? [];
+	// The root (trail null) stays out of its descendants' trails.
+	const childTrail = trail === null ? [] : [...trail, node.label];
 
 	for (const child of node.children) {
-		finish(child, rule).forEach((entry) => subtree.add(entry));
+		finish(child, rule, childTrail).forEach((entry) => subtree.add(entry));
 	}
 
 	for (const entry of subtree) {

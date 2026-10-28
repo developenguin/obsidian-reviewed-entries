@@ -15,7 +15,8 @@ Obsidian plugin: a database of **items** (a hierarchy in Markdown files) and **e
    ```
    ````
 
-3. Command **Reviewed Entries: Open database** opens a database note.
+3. For triaging drafts, add a note with a block that has `db: <database note>` and `view: inbox`.
+4. Command **Reviewed Entries: Open database** opens a database note.
 
 ## Develop
 

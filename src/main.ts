@@ -4,18 +4,19 @@ import {
 	FuzzySuggestModal,
 	Keymap,
 	MarkdownRenderChild,
+	MarkdownRenderer,
 	Notice,
 	Plugin,
 	TFile,
 	debounce,
 } from 'obsidian';
 import { type DbConfig, type Filter, FILTERS, buildDb, isDbFile, parseBlockParams, parseConfig } from './model';
-import { type ViewState, renderDb, renderError } from './view';
+import { type View, type ViewState, VIEWS, renderDb, renderError, renderInbox } from './view';
 
 export default class ReviewedEntriesPlugin extends Plugin {
 	async onload(): Promise<void> {
 		this.registerMarkdownCodeBlockProcessor('reviewed-db', (source, el, ctx) => {
-			ctx.addChild(new Overview(this.app, el, source, ctx));
+			ctx.addChild(new Block(this.app, el, source, ctx));
 		});
 
 		this.addCommand({
@@ -70,10 +71,11 @@ class DatabasePicker extends FuzzySuggestModal<TFile> {
 	}
 }
 
-class Overview extends MarkdownRenderChild {
+class Block extends MarkdownRenderChild {
 	private app: App;
 	private source: string;
 	private ctx: MarkdownPostProcessorContext;
+	private view: View;
 	private state: ViewState;
 	private dbPath = '';
 	private config: DbConfig | null = null;
@@ -85,7 +87,10 @@ class Overview extends MarkdownRenderChild {
 		this.source = source;
 		this.ctx = ctx;
 
-		const filter = parseBlockParams(source)['filter'] as Filter;
+		const params = parseBlockParams(source);
+		const view = params['view'] as View;
+		const filter = params['filter'] as Filter;
+		this.view = VIEWS.includes(view) ? view : 'overview';
 		this.state = { filter: FILTERS.includes(filter) ? filter : 'all', open: new Map() };
 	}
 
@@ -131,14 +136,24 @@ class Overview extends MarkdownRenderChild {
 		const files = vault.getMarkdownFiles().filter((file) => file.path !== dbFile.path && isDbFile(config, file.path));
 		const sources = await Promise.all(files.map(async (file) => ({ path: file.path, text: await vault.cachedRead(file) })));
 
-		renderDb(this.containerEl, buildDb(config, sources), this.state, {
-			openLine: (path, line, event) => {
+		const db = buildDb(config, sources);
+		const handlers = {
+			openLine: (path: string, line: number, event: MouseEvent) => {
 				const file = vault.getFileByPath(path);
 
 				if (file) {
 					void this.app.workspace.getLeaf(Keymap.isModEvent(event)).openFile(file, { eState: { line } });
 				}
 			},
-		});
+			renderMarkdown: (el: HTMLElement, markdown: string) => {
+				void MarkdownRenderer.render(this.app, markdown, el, this.ctx.sourcePath, this);
+			},
+		};
+
+		if (this.view === 'inbox') {
+			renderInbox(this.containerEl, db, handlers);
+		} else {
+			renderDb(this.containerEl, db, this.state, handlers);
+		}
 	}
 }

@@ -45,6 +45,8 @@ test('parseEntries reads heading, fields and links', () => {
 	assert.equal(entry.title, 'Title with C#');
 	assert.equal(entry.status, 'confirmed');
 	assert.deepEqual(entry.links.map((link) => link.id), ['a', null, 'b']);
+	assert.deepEqual(entry.links.map((link) => link.text), ['A', 'G', 'H']);
+	assert.equal(entry.body, '');
 });
 
 test('parseConfig rejects a bad coverage rule', () => {
@@ -80,6 +82,9 @@ test('fixture: coverage, counts and order', async () => {
 	const guitar = find(db.root, 'Guitar');
 	assert.deepEqual([guitar.confirmed, guitar.drafts], [2, 1]);
 	assert.equal(find(db.root, 'Asks for directions').textChanged, true);
+	assert.deepEqual(find(db.root, 'Asks for directions').trail, ['Languages', 'Spanish', 'Holds a conversation']);
+	assert.equal(db.entries.filter((entry) => entry.status === 'draft').length, 2);
+	assert.match(db.entries.find((entry) => entry.date === '2026-10-03').body, /^Asked a stranger/);
 });
 
 test('fixture: coverage rule any', async () => {
@@ -103,4 +108,8 @@ test('fixture: warnings', async () => {
 		'Text changed',
 		'Unresolved link',
 	]);
+
+	for (const warning of db.warnings) {
+		assert.doesNotMatch(warning.message, /\^|\[\[|2026\d{4}-/, warning.message);
+	}
 });

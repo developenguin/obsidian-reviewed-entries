@@ -1,7 +1,10 @@
 // Renders a Db into plain DOM. No Obsidian imports, so a browser page can
-// preview it; main.ts supplies navigation.
+// preview it; main.ts supplies navigation and Markdown rendering.
 
 import { type Db, type Entry, type Filter, type Node, FILTERS, matches } from './model';
+
+export const VIEWS = ['overview', 'inbox'] as const;
+export type View = (typeof VIEWS)[number];
 
 export interface ViewState {
 	filter: Filter;
@@ -12,6 +15,8 @@ export interface ViewState {
 export interface ViewHandlers {
 	/** Open a file at a 0-based line; `event` tells whether to use a new tab. */
 	openLine(path: string, line: number, event: MouseEvent): void;
+	/** Render Markdown into `el`. Without it, text is shown as-is. */
+	renderMarkdown?(el: HTMLElement, markdown: string): void;
 }
 
 const FILTER_LABELS: Record<Filter, string> = {
@@ -25,6 +30,9 @@ const STATUS_LABELS: Record<string, string> = {
 	confirmed: 'Confirmed',
 	rejected: 'Rejected',
 };
+
+// Fields every entry has; the inbox shows the others.
+const BASE_FIELDS = ['id', 'status', 'items'];
 
 // Rows deeper than this start collapsed.
 const OPEN_DEPTH = 2;
@@ -46,13 +54,29 @@ function el<K extends keyof HTMLElementTagNameMap>(
 	return element;
 }
 
-function link(parent: HTMLElement, text: string, path: string, line: number, handlers: ViewHandlers): void {
+function link(parent: HTMLElement, text: string, path: string, line: number, handlers: ViewHandlers): HTMLAnchorElement {
 	const a = el('a', 'rdb-link', text, parent);
 	a.href = '#';
 	a.addEventListener('click', (event) => {
 		event.preventDefault();
 		handlers.openLine(path, line, event);
 	});
+
+	return a;
+}
+
+function plural(count: number, one: string, many: string): string {
+	return `${count} ${count === 1 ? one : many}`;
+}
+
+/** Confirmed entries count as entries; drafts are listed apart. */
+function counts(node: Node): string {
+	const parts = [];
+
+	if (node.confirmed) parts.push(plural(node.confirmed, 'entry', 'entries'));
+	if (node.drafts) parts.push(plural(node.drafts, 'draft', 'drafts'));
+
+	return parts.join(' · ');
 }
 
 export function renderError(container: HTMLElement, message: string): void {
@@ -63,9 +87,10 @@ export function renderError(container: HTMLElement, message: string): void {
 export function renderDb(container: HTMLElement, db: Db, state: ViewState, handlers: ViewHandlers): void {
 	container.replaceChildren();
 	const root = el('div', 'rdb', undefined, container);
+	const missing = db.leaves.total - db.leaves.covered;
 
 	el('div', 'rdb-title', db.root.label, root);
-	el('p', 'rdb-summary', `${db.leaves.covered} of ${db.leaves.total} lowest-level items covered. ${counts(db.root)}.`, root);
+	el('p', 'rdb-summary', `${missing} of ${db.leaves.total} lowest-level items missing. ${counts(db.root) || 'No entries yet'}.`, root);
 
 	renderFilter(root, state, () => renderDb(container, db, state, handlers));
 
@@ -113,10 +138,6 @@ function renderFilter(parent: HTMLElement, state: ViewState, rerender: () => voi
 	}
 }
 
-function counts(node: Node): string {
-	return `${node.confirmed} confirmed · ${node.drafts} draft`;
-}
-
 function renderNode(parent: HTMLElement, node: Node, depth: number, state: ViewState, handlers: ViewHandlers): void {
 	const li = el('li', `rdb-node rdb-${node.kind}`, undefined, parent);
 	const children = node.children.filter((child) => matches(child, state.filter));
@@ -125,10 +146,13 @@ function renderNode(parent: HTMLElement, node: Node, depth: number, state: ViewS
 
 	const row = el(hasBody ? 'summary' : 'div', 'rdb-row');
 	el('span', 'rdb-label', node.label, row);
-	el('span', `rdb-coverage ${node.covered ? 'is-covered' : 'is-missing'}`, node.covered ? 'Covered' : 'Missing', row);
+
+	if (!node.covered) {
+		el('span', 'rdb-badge rdb-missing', 'Missing', row);
+	}
 
 	if (node.textChanged) {
-		el('span', 'rdb-flag', 'Text changed', row);
+		el('span', 'rdb-badge rdb-flag', 'Text changed', row);
 	}
 
 	el('span', 'rdb-counts', counts(node), row);
@@ -154,6 +178,10 @@ function renderNode(parent: HTMLElement, node: Node, depth: number, state: ViewS
 	}
 }
 
+function statusLabel(entry: Entry): string {
+	return STATUS_LABELS[entry.status] ?? `Unknown status${entry.status ? `: ${entry.status}` : ''}`;
+}
+
 function renderEntry(parent: HTMLElement, entry: Entry, handlers: ViewHandlers): void {
 	const li = el('li', `rdb-entry is-${entry.status || 'unknown'}`, undefined, parent);
 
@@ -162,5 +190,69 @@ function renderEntry(parent: HTMLElement, entry: Entry, handlers: ViewHandlers):
 	}
 
 	link(li, entry.title || 'Untitled entry', entry.path, entry.line, handlers);
-	el('span', 'rdb-status', STATUS_LABELS[entry.status] ?? `Unknown status${entry.status ? `: ${entry.status}` : ''}`, li);
+	el('span', 'rdb-badge rdb-status', statusLabel(entry), li);
+}
+
+/** All draft entries, oldest first, as a table. */
+export function renderInbox(container: HTMLElement, db: Db, handlers: ViewHandlers): void {
+	container.replaceChildren();
+	const root = el('div', 'rdb rdb-inbox', undefined, container);
+	const drafts = db.entries.filter((entry) => entry.status === 'draft').sort((a, b) => a.date.localeCompare(b.date));
+
+	el('div', 'rdb-title', `${db.root.label}: inbox`, root);
+	el('p', 'rdb-summary', drafts.length ? `${plural(drafts.length, 'draft', 'drafts')} to review.` : 'No drafts to review.', root);
+
+	if (!drafts.length) {
+		return;
+	}
+
+	const table = el('table', 'rdb-table', undefined, el('div', 'rdb-table-wrap', undefined, root));
+	const head = el('tr', undefined, undefined, el('thead', undefined, undefined, table));
+	['Date', 'Entry', 'Items'].forEach((title) => (el('th', undefined, title, head).scope = 'col'));
+	const body = el('tbody', undefined, undefined, table);
+
+	for (const entry of drafts) {
+		const row = el('tr', undefined, undefined, body);
+		el('td', 'rdb-date', entry.date, row);
+
+		const cell = el('td', undefined, undefined, row);
+		link(el('strong', undefined, undefined, cell), entry.title || 'Untitled entry', entry.path, entry.line, handlers);
+
+		if (entry.body) {
+			const text = el('div', 'rdb-body', undefined, cell);
+
+			if (handlers.renderMarkdown) {
+				handlers.renderMarkdown(text, entry.body);
+			} else {
+				text.textContent = entry.body;
+			}
+		}
+
+		for (const [key, value] of Object.entries(entry.fields)) {
+			if (!BASE_FIELDS.includes(key)) {
+				el('div', 'rdb-field', `${key}: ${value}`, cell);
+			}
+		}
+
+		const items = el('ul', 'rdb-items', undefined, el('td', undefined, undefined, row));
+
+		for (const target of entry.links) {
+			const li = el('li', undefined, undefined, items);
+			const node = target.id === null ? undefined : db.itemsById.get(target.id);
+
+			if (!node) {
+				el('span', undefined, `"${target.text}" `, li);
+				el('span', 'rdb-badge rdb-flag', target.id === null ? 'Not an item' : 'No longer exists', li);
+				continue;
+			}
+
+			link(li, node.label, node.path, node.line, handlers);
+
+			if (node.textChanged) {
+				el('span', 'rdb-badge rdb-flag', 'Text changed', li);
+			}
+
+			el('div', 'rdb-trail', node.trail.join(' › '), li);
+		}
+	}
 }

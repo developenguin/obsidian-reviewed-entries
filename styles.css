@@ -1,8 +1,9 @@
-/* Status is always in the text; colour and weight only reinforce it. */
+/* Status is always in the text; colour and weight only reinforce it.
+   Sizes are relative, so the note's font size (Settings → Appearance) applies. */
 
 .rdb {
-	--rdb-indent: var(--size-4-4);
-	font-size: var(--font-ui-medium);
+	--rdb-indent: 1.25em;
+	--rdb-small: 0.875em;
 }
 
 .rdb-title {
@@ -58,15 +59,28 @@
 	margin-block: var(--size-4-2) 0;
 }
 
-.rdb ul.rdb-tree,
-.rdb ul.rdb-entries {
+/* Override the note's list indentation and bullets inside the tree. */
+.rdb .rdb-tree,
+.rdb .rdb-entries,
+.rdb .rdb-items {
 	list-style: none;
 	margin: 0;
 	padding-inline-start: 0;
 }
 
-.rdb ul.rdb-tree ul {
+.rdb .rdb-tree li,
+.rdb .rdb-entries li,
+.rdb .rdb-items li {
+	margin: 0;
+	padding: 0;
+}
+
+.rdb .rdb-tree .rdb-tree {
 	padding-inline-start: var(--rdb-indent);
+}
+
+.rdb .rdb-entries {
+	padding-inline-start: calc(var(--rdb-indent) + 1em);
 }
 
 .rdb-row {
@@ -91,7 +105,7 @@ summary.rdb-row::-webkit-details-marker {
 summary.rdb-row::before {
 	content: '▸';
 	width: 1em;
-	margin-inline-end: -0.5em;
+	margin-inline-end: calc(-1 * var(--size-4-3));
 	color: var(--text-muted);
 }
 
@@ -99,9 +113,9 @@ details[open] > summary.rdb-row::before {
 	content: '▾';
 }
 
-/* Keep the row aligned with leaf rows that have no disclosure marker. */
+/* Align leaf rows, which have no marker, with the rows that do. */
 div.rdb-row {
-	padding-inline-start: calc(var(--size-4-2) + 1em + var(--size-4-3) - 0.5em);
+	padding-inline-start: calc(var(--size-4-2) + 1em);
 }
 
 .rdb-row:hover {
@@ -116,21 +130,15 @@ div.rdb-row {
 	font-weight: var(--font-semibold);
 }
 
-.rdb-coverage,
-.rdb-flag,
-.rdb-status {
-	font-size: var(--font-ui-smaller);
+.rdb-badge {
+	font-size: var(--rdb-small);
 	padding: 0 var(--size-4-2);
 	border-radius: var(--radius-s);
 	border: var(--border-width) solid currentColor;
 	white-space: nowrap;
 }
 
-.rdb-coverage.is-covered {
-	color: var(--text-success);
-}
-
-.rdb-coverage.is-missing {
+.rdb-missing {
 	color: var(--text-muted);
 	border-style: dashed;
 }
@@ -141,13 +149,9 @@ div.rdb-row {
 
 .rdb-counts {
 	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
+	font-size: var(--rdb-small);
 	font-variant-numeric: tabular-nums;
 	white-space: nowrap;
-}
-
-.rdb-entries {
-	padding-inline-start: calc(var(--rdb-indent) + 1.1em) !important;
 }
 
 .rdb-entry {
@@ -161,6 +165,7 @@ div.rdb-row {
 .rdb-date {
 	color: var(--text-muted);
 	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
 }
 
 .rdb-entry.is-draft .rdb-status {
@@ -174,4 +179,55 @@ div.rdb-row {
 
 .rdb-entry:not(.is-draft):not(.is-confirmed):not(.is-rejected) .rdb-status {
 	color: var(--text-error);
+}
+
+/* Inbox */
+
+.rdb-table-wrap {
+	overflow-x: auto;
+}
+
+.rdb .rdb-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.rdb .rdb-table th,
+.rdb .rdb-table td {
+	text-align: start;
+	vertical-align: top;
+	padding: var(--size-4-2) var(--size-4-3);
+	border-bottom: var(--border-width) solid var(--background-modifier-border);
+}
+
+.rdb .rdb-table th {
+	color: var(--text-muted);
+	font-weight: var(--font-semibold);
+}
+
+.rdb-body > :first-child {
+	margin-top: var(--size-4-1);
+}
+
+.rdb-body > :last-child {
+	margin-bottom: 0;
+}
+
+.rdb-field,
+.rdb-trail {
+	color: var(--text-muted);
+	font-size: var(--rdb-small);
+}
+
+.rdb .rdb-items li + li {
+	margin-top: var(--size-4-2);
+}
+
+.rdb-items .rdb-badge {
+	margin-inline-start: var(--size-4-2);
+}
+
+.rdb .rdb-table th:last-child {
+	width: 35%;
+	min-width: 12em;
 }
