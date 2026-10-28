@@ -147,3 +147,9 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Build output
+main.js
+
+# Fixture vault: Obsidian settings and installed plugin
+fixture/.obsidian/

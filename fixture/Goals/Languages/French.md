@@ -1,0 +1,3 @@
+- Writes a letter ^fr-1
+	- Uses formal greetings ^fr-1a
+	- Spells accents correctly ^fr-1b

@@ -1,0 +1,177 @@
+/* Status is always in the text; colour and weight only reinforce it. */
+
+.rdb {
+	--rdb-indent: var(--size-4-4);
+	font-size: var(--font-ui-medium);
+}
+
+.rdb-title {
+	font-size: var(--h3-size);
+	font-weight: var(--h3-weight);
+}
+
+.rdb-summary,
+.rdb-empty {
+	color: var(--text-muted);
+	margin-block: var(--size-4-1) var(--size-4-3);
+}
+
+.rdb-error {
+	color: var(--text-error);
+}
+
+.rdb-filter {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-2) var(--size-4-4);
+	border: var(--border-width) solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	padding: var(--size-4-2) var(--size-4-3);
+	margin: 0 0 var(--size-4-3);
+}
+
+.rdb-filter legend {
+	padding-inline: var(--size-4-1);
+	color: var(--text-muted);
+}
+
+.rdb-filter label {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-4-1);
+}
+
+.rdb-warnings {
+	border: var(--border-width) solid var(--background-modifier-border);
+	border-inline-start: 3px solid var(--text-warning);
+	border-radius: var(--radius-m);
+	padding: var(--size-4-2) var(--size-4-3);
+	margin-bottom: var(--size-4-3);
+}
+
+.rdb-warnings summary {
+	font-weight: var(--font-semibold);
+	cursor: pointer;
+}
+
+.rdb-warnings ul {
+	margin-block: var(--size-4-2) 0;
+}
+
+.rdb ul.rdb-tree,
+.rdb ul.rdb-entries {
+	list-style: none;
+	margin: 0;
+	padding-inline-start: 0;
+}
+
+.rdb ul.rdb-tree ul {
+	padding-inline-start: var(--rdb-indent);
+}
+
+.rdb-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--size-4-1) var(--size-4-3);
+	padding: var(--size-4-1) var(--size-4-2);
+	border-radius: var(--radius-s);
+}
+
+summary.rdb-row {
+	cursor: pointer;
+	list-style: none;
+}
+
+summary.rdb-row::-webkit-details-marker {
+	display: none;
+}
+
+/* display: flex drops the native marker, so draw one. */
+summary.rdb-row::before {
+	content: '▸';
+	width: 1em;
+	margin-inline-end: -0.5em;
+	color: var(--text-muted);
+}
+
+details[open] > summary.rdb-row::before {
+	content: '▾';
+}
+
+/* Keep the row aligned with leaf rows that have no disclosure marker. */
+div.rdb-row {
+	padding-inline-start: calc(var(--size-4-2) + 1em + var(--size-4-3) - 0.5em);
+}
+
+.rdb-row:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rdb-label {
+	flex: 1 1 16em;
+}
+
+.rdb-group > details > .rdb-row .rdb-label {
+	font-weight: var(--font-semibold);
+}
+
+.rdb-coverage,
+.rdb-flag,
+.rdb-status {
+	font-size: var(--font-ui-smaller);
+	padding: 0 var(--size-4-2);
+	border-radius: var(--radius-s);
+	border: var(--border-width) solid currentColor;
+	white-space: nowrap;
+}
+
+.rdb-coverage.is-covered {
+	color: var(--text-success);
+}
+
+.rdb-coverage.is-missing {
+	color: var(--text-muted);
+	border-style: dashed;
+}
+
+.rdb-flag {
+	color: var(--text-warning);
+}
+
+.rdb-counts {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.rdb-entries {
+	padding-inline-start: calc(var(--rdb-indent) + 1.1em) !important;
+}
+
+.rdb-entry {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--size-4-1) var(--size-4-2);
+	padding: var(--size-2-1) 0;
+}
+
+.rdb-date {
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.rdb-entry.is-draft .rdb-status {
+	font-weight: var(--font-semibold);
+}
+
+.rdb-entry.is-rejected .rdb-link {
+	text-decoration: line-through;
+	color: var(--text-faint);
+}
+
+.rdb-entry:not(.is-draft):not(.is-confirmed):not(.is-rejected) .rdb-status {
+	color: var(--text-error);
+}
