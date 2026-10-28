@@ -109,6 +109,25 @@ test('fixture: coverage rule any', async () => {
 	assert.equal(buildDb({ ...config, coverage: 'all' }, files).root.covered, false);
 });
 
+test('items keep source order; folders and files sort by name', () => {
+	const files = [
+		{ path: 'I/B/Z.md', text: '- Zulu ^z\n\t- Yankee ^y\n\t- Alpha ^a\n- Bravo ^b\n' },
+		{ path: 'I/B/A.md', text: '- Charlie ^c\n' },
+		{ path: 'I/A/X.md', text: '- Delta ^d\n' },
+	];
+	const config = { name: 'x', itemsFolder: 'I', entriesFolder: 'E', coverage: 'all', order: [] };
+	const root = buildDb(config, files).root;
+	const labels = (node) => node.children.map((child) => child.label);
+
+	assert.deepEqual(labels(root), ['A', 'B']);
+	assert.deepEqual(labels(root.children[1]), ['A', 'Z']);
+
+	const file = root.children[1].children[1];
+
+	assert.deepEqual(labels(file), ['Zulu', 'Bravo']);
+	assert.deepEqual(labels(file.children[0]), ['Yankee', 'Alpha']);
+});
+
 test('fixture: warnings', async () => {
 	const db = await loadFixture();
 

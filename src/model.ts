@@ -563,8 +563,9 @@ export function buildDb(config: DbConfig, files: SourceFile[]): Db {
 		return index === -1 ? config.order.length : index;
 	};
 
+	// Folders and files sort by `order`, then by name. Items keep their order in the file.
 	const sortGroups = (node: Node): void => {
-		if (node.kind === 'item') {
+		if (node.kind === 'item' || node.path.endsWith('.md')) {
 			return;
 		}
 

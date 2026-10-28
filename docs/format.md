@@ -32,7 +32,7 @@ order:
 | `items-folder` | yes | Vault path of the folder with item files. Searched recursively. |
 | `entries-folder` | yes | Vault path of the folder with entry files. Searched recursively. |
 | `coverage` | no | Rule for items with children: `all` (default) or `any`. See [Coverage](#coverage). |
-| `order` | no | Folder and file names to sort first, in this order. Everything else sorts by name (natural sort). |
+| `order` | no | Folder and file names to sort first, in this order. Other folders and files sort by name (natural sort). Items always keep the order they have in their file. |
 
 The database note itself is never read as an item or entry file.
 
@@ -69,6 +69,7 @@ Optional free text. Headings and paragraphs are ignored.
 - **Block ID**: `^` followed by letters, digits and `-`, at the end of the line. Obsidian hides it in Reading view and Live Preview.
 - **ID scope**: unique across all item files of the database. The importer generates IDs and keeps them stable when text changes.
 - **Text**: the first line without the block ID and without the `#text-changed` and `#retired` tags. Continuation lines are ignored.
+- **Order**: items show in the order they appear in the file, also when nested.
 - **Parent**: the nearest enclosing list item that is an item. List items without a block ID are skipped; their children attach to the next item up, or to the file.
 - **Text changed**: the `#text-changed` tag marks an item whose text the importer changed after entries may have been linked to it. The overview warns until the user removes the tag.
 - **Retired**: the `#retired` tag marks an item that is no longer part of the database. The importer retires items instead of deleting them, so entries keep resolving. A retired item and its children leave the tree and coverage, and show in a separate Retired section with their entries. Only delete an item when no entry links to it.
