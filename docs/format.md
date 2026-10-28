@@ -71,7 +71,7 @@ Optional free text. Headings and paragraphs are ignored.
 - **Text**: the first line without the block ID and without the `#text-changed` and `#retired` tags. Continuation lines are ignored.
 - **Order**: items show in the order they appear in the file, also when nested.
 - **Parent**: the nearest enclosing list item that is an item. List items without a block ID are skipped; their children attach to the next item up, or to the file.
-- **Text changed**: the `#text-changed` tag marks an item whose text the importer changed after entries may have been linked to it. The overview warns until the user removes the tag.
+- **Text changed**: the `#text-changed` tag marks an item whose text the importer changed after entries may have been linked to it. The overview warns until the tag is removed, by hand or with Resolve (see [Review](#review)). The importer adds the tag only when the text changes, so a removed tag stays removed until the next change.
 - **Retired**: the `#retired` tag marks an item that is no longer part of the database. The importer retires items instead of deleting them, so entries keep resolving. A retired item and its children leave the tree and coverage, and show in a separate Retired section with their entries. Only delete an item when no entry links to it.
 - **File title**: the `title` property, or the file name without `.md`.
 
@@ -200,6 +200,7 @@ Writes go through Obsidian's `vault.process`, which re-reads the file first, and
 |---|---|---|
 | Confirm, Reject | Inbox card | Only the entry's `status::` line. |
 | Edit | Inbox card, entry row in the overview | The whole entry: heading, `id`, `status`, `items`, other fields, body. Opens a form with title, date, status, description and linked items (searchable picker; retired items can't be picked). The entry stays in its file, also when its date changes. |
+| Resolve | Overview row of an item with `Text changed` | Opens a check of the entries linked to the item: each shows the text it was linked with, its body, and Edit and Reject. **Mark as resolved** removes the item's `#text-changed` tag. Optionally, **Update link text** first sets the alias of each `items::` link to the item to its current text; links in the body stay as they are. |
 | New entry | Button next to the tabs | Appends to `entries-folder/YYYY-MM.md` for the entry's date, creating the file (with a `# YYYY-MM` heading) if needed. Default status `confirmed`. |
 
 An edited or new entry is written in this layout: heading, then `id`, `status`, `items` and other fields one per line without list markers, a blank line, then the body. Body lines that would read as a heading (`# `, `## `) or a field (`key::`) are escaped with a backslash; lines inside code fences are kept as they are.

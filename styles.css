@@ -429,7 +429,8 @@ details[open] > summary.rdb-row .rdb-marker {
 }
 
 .rdb-pill.is-rejected,
-.rdb-pill.is-retired {
+.rdb-pill.is-retired,
+.rdb-pill.is-neutral {
 	background: var(--background-modifier-hover);
 	color: var(--text-muted);
 }
@@ -553,7 +554,8 @@ details[open] > summary.rdb-row .rdb-marker {
 	margin-inline-start: auto;
 }
 
-.rdb-entry .rdb-button-quiet {
+.rdb-entry .rdb-button-quiet,
+.rdb-row-meta .rdb-button-quiet {
 	height: auto;
 	padding: 0.1em 0.75em;
 	font-size: var(--rdb-xsmall);
@@ -608,6 +610,40 @@ details[open] > summary.rdb-row .rdb-marker {
 
 .rdb-chip-remove:hover {
 	color: var(--text-error);
+}
+
+/* Resolve text change */
+
+.rdb-modal .rdb-resolve-list {
+	display: grid;
+	gap: var(--size-4-2);
+	margin: var(--size-4-2) 0 var(--rdb-space);
+	padding: 0;
+	list-style: none;
+}
+
+.rdb-modal .rdb-resolve-item {
+	display: grid;
+	gap: var(--size-4-1);
+	margin-bottom: var(--rdb-space);
+}
+
+.rdb-modal .rdb-resolve-entry {
+	display: grid;
+	gap: var(--size-4-2);
+}
+
+.rdb-linked-as {
+	color: var(--text-muted);
+	font-size: var(--rdb-small);
+}
+
+.rdb-modal .rdb-note {
+	margin: var(--size-4-2) 0;
+}
+
+.rdb-modal .rdb-chip-line .rdb-note {
+	margin: 0;
 }
 
 .rdb-form-error {

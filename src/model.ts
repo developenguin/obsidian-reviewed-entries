@@ -450,6 +450,38 @@ export function appendEntry(text: string, input: EntryInput): string {
 	return `${trimmed}${trimmed ? '\n\n' : ''}${formatEntry(input)}\n`;
 }
 
+/** Remove the `#text-changed` tag from the item with this block ID. */
+export function clearTextChanged(text: string, id: string): string {
+	const item = contentLines(text).find(({ text: content, code }) => !code && LIST_ITEM.test(content) && BLOCK_ID.exec(content)?.[1] === id);
+
+	if (!item) {
+		throw new Error(`No item with ID ${id} in this file.`);
+	}
+
+	const lines = text.split('\n');
+	lines[item.line] = lines[item.line].replace(/[ \t]#text-changed(?=[ \t\r]|$)/g, '');
+
+	return lines.join('\n');
+}
+
+/** Set the text of every `items::` link to this item to `label`. Body text stays as it is. */
+export function relabelLinks(text: string, id: string, label: string): string {
+	const lines = text.split('\n');
+
+	for (const { line, text: content, code } of contentLines(text)) {
+		if (code || FIELD.exec(content)?.[1].toLowerCase() !== 'items') {
+			continue;
+		}
+
+		lines[line] = lines[line].replace(WIKILINK, (link, target: string) => {
+			const [file, blockId] = target.split('#^');
+			return blockId === id ? formatLink({ target: file, id, text: label }) : link;
+		});
+	}
+
+	return lines.join('\n');
+}
+
 /** `YYYYMMDD-` plus 4 hex characters, not in `taken`. */
 export function newEntryId(date: string, taken: Set<string>, random: () => number = Math.random): string {
 	const prefix = date.replace(/-/g, '');

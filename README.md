@@ -16,7 +16,8 @@ Obsidian plugin: a database of **items** (a hierarchy in Markdown files) and **e
    ````
 
 3. Drafts to review are in the block's **Inbox** tab. For a separate inbox note, add a block with `db: <database note>` and `view: inbox`.
-4. Command **Reviewed Entries: Open database** opens a database note.
+4. Items marked `Text changed` have a **Resolve** button: check the linked entries, then clear the tag.
+5. Command **Reviewed Entries: Open database** opens a database note.
 
 ## Develop
 
@@ -44,4 +45,5 @@ OBSIDIAN_VAULT=~/path/to/vault yarn build
 | `src/model.ts` | Parser, coverage and entry writing (`setEntryStatus`, `replaceEntry`, `appendEntry`). No Obsidian imports; Node scripts can import it directly. |
 | `src/view.ts` | Renders the overview and inbox into plain DOM. |
 | `src/entry-modal.ts` | Form to edit or add an entry, with the item picker. |
+| `src/resolve-modal.ts` | Check the entries of an item whose text changed, then clear its tag. |
 | `src/main.ts` | Obsidian glue: code block, command, file events. |

@@ -1,7 +1,7 @@
 {
 	"id": "reviewed-entries",
 	"name": "Reviewed Entries",
-	"version": "0.2.1",
+	"version": "0.3.0",
 	"minAppVersion": "1.7.2",
 	"description": "A database of items with reviewed entries, shown as a coverage overview.",
 	"author": "developenguin",

@@ -23,16 +23,19 @@ import {
 	FILTERS,
 	appendEntry,
 	buildDb,
+	clearTextChanged,
 	entryInput,
 	formatEntry,
 	isDbFile,
 	newEntryId,
 	parseBlockParams,
 	parseConfig,
+	relabelLinks,
 	replaceEntry,
 	setEntryStatus,
 } from './model';
-import { type View, type ViewHandlers, type ViewState, VIEWS, renderDb, renderError } from './view';
+import { ResolveModal } from './resolve-modal';
+import { type View, type ViewHandlers, type ViewState, VIEWS, renderDb, renderError, reviewable } from './view';
 
 export default class ReviewedEntriesPlugin extends Plugin {
 	async onload(): Promise<void> {
@@ -164,17 +167,19 @@ class Block extends MarkdownRenderChild {
 					void this.app.workspace.getLeaf(Keymap.isModEvent(event)).openFile(file, { eState: { line } });
 				}
 			},
-			renderMarkdown: (el: HTMLElement, markdown: string) => {
-				void MarkdownRenderer.render(this.app, markdown, el, this.ctx.sourcePath, this);
-			},
+			renderMarkdown: (el: HTMLElement, markdown: string) => this.renderMarkdown(el, markdown),
 			review: this.review(config, db),
 		};
 
 		renderDb(this.containerEl, db, this.state, handlers);
 	}
 
+	private renderMarkdown(el: HTMLElement, markdown: string): void {
+		void MarkdownRenderer.render(this.app, markdown, el, this.ctx.sourcePath, this);
+	}
+
 	/** Writes go through vault.process, which re-reads the file, so they act on its current text. */
-	private review(config: DbConfig, db: Db): ViewHandlers['review'] {
+	private review(config: DbConfig, db: Db): NonNullable<ViewHandlers['review']> {
 		const { metadataCache, vault } = this.app;
 		const items = linkable(db.root);
 
@@ -203,19 +208,43 @@ class Block extends MarkdownRenderChild {
 			}).open();
 		};
 
+		const setStatus = async (entry: Entry, status: Status) => {
+			try {
+				await write(entry.path, (text) => setEntryStatus(text, entry.id, status));
+			} catch (error) {
+				new Notice(`Could not update "${entry.title}": ${(error as Error).message}`);
+				throw error;
+			}
+		};
+
+		const edit = (entry: Entry, onSaved?: () => void) => {
+			openForm('Edit entry', 'Save', entryInput(entry), entry.path, async (input) => {
+				await write(entry.path, (text) => replaceEntry(text, entry.id, input));
+				onSaved?.();
+			});
+		};
+
 		return {
-			setStatus: async (entry: Entry, status: Status) => {
-				try {
-					await write(entry.path, (text) => setEntryStatus(text, entry.id, status));
-				} catch (error) {
-					new Notice(`Could not update "${entry.title}": ${(error as Error).message}`);
-					throw error;
-				}
-			},
-			edit: (entry: Entry) => {
-				openForm('Edit entry', 'Save', entryInput(entry), entry.path, (input) =>
-					write(entry.path, (text) => replaceEntry(text, entry.id, input)),
-				);
+			setStatus,
+			edit,
+			resolve: (node: Node) => {
+				new ResolveModal(this.app, {
+					node,
+					canReview: reviewable(db),
+					renderMarkdown: (el, markdown) => this.renderMarkdown(el, markdown),
+					setStatus,
+					edit,
+					onResolve: async (relabel) => {
+						// Links first: if that fails, the tag stays and the item still asks for review.
+						if (relabel) {
+							for (const path of new Set(node.entries.map((entry) => entry.path))) {
+								await write(path, (text) => relabelLinks(text, node.key, node.label));
+							}
+						}
+
+						await write(node.path, (text) => clearTextChanged(text, node.key));
+					},
+				}).open();
 			},
 			create: () => {
 				// Local date: shift by the timezone offset before taking the ISO date.

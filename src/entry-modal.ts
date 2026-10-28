@@ -1,7 +1,7 @@
 import { type App, FuzzySuggestModal, type FuzzyMatch, Modal, Setting } from 'obsidian';
 import { type EntryInput, type Node, type Status, STATUSES } from './model';
 
-const STATUS_LABELS: Record<Status, string> = { draft: 'Draft', confirmed: 'Confirmed', rejected: 'Rejected' };
+export const STATUS_LABELS: Record<Status, string> = { draft: 'Draft', confirmed: 'Confirmed', rejected: 'Rejected' };
 
 export interface EntryModalOptions {
 	heading: string;

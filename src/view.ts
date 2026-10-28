@@ -23,6 +23,8 @@ export interface ViewHandlers {
 		setStatus(entry: Entry, status: Status): Promise<void>;
 		edit(entry: Entry): void;
 		create(): void;
+		/** Check the entries of an item whose text changed, then clear its tag. */
+		resolve(node: Node): void;
 	};
 }
 
@@ -84,7 +86,7 @@ function button(parent: HTMLElement, text: string, cls: string, onClick: () => v
 }
 
 /** Entries with a unique id; others can't be written back safely. */
-function reviewable(db: Db): (entry: Entry) => boolean {
+export function reviewable(db: Db): (entry: Entry) => boolean {
 	const counts = new Map<string, number>();
 	db.entries.forEach((entry) => counts.set(entry.id, (counts.get(entry.id) ?? 0) + 1));
 
@@ -300,6 +302,15 @@ function renderNode(parent: HTMLElement, node: Node, depth: number, ctx: TreeCon
 
 	if (!node.covered && !node.retired) pill(meta, 'Missing', 'missing');
 	if (node.textChanged) pill(meta, 'Text changed', 'warning');
+
+	const review = ctx.handlers.review;
+
+	if (review && node.textChanged) {
+		const resolve = button(meta, 'Resolve', 'rdb-button-quiet', () => review.resolve(node));
+		resolve.setAttribute('aria-label', `Resolve text change of ${node.label}`);
+		// The row may be a summary; don't let the click toggle it.
+		resolve.addEventListener('click', (event) => event.preventDefault());
+	}
 
 	el('span', 'rdb-counts', counts(node), meta);
 

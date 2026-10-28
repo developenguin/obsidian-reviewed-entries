@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { test } from 'node:test';
-import { appendEntry, buildDb, entryInput, formatEntry, newEntryId, parseConfig, parseEntries, parseItems, replaceEntry, setEntryStatus } from '../src/model.ts';
+import { appendEntry, buildDb, clearTextChanged, entryInput, formatEntry, newEntryId, parseConfig, parseEntries, parseItems, relabelLinks, replaceEntry, setEntryStatus } from '../src/model.ts';
 
 const vault = new URL('../fixture/', import.meta.url).pathname;
 
@@ -204,4 +204,20 @@ test('appendEntry and newEntryId', () => {
 	assert.equal(input.id, '20261004-8000');
 	assert.deepEqual(parseEntries('', appendEntry(LOG, input)).map((entry) => entry.id), ['a1', 'b2', '20261004-8000']);
 	assert.equal(appendEntry('', input), `${formatEntry(input)}\n`);
+});
+
+test('clearTextChanged removes the tag from that item only', () => {
+	const text = '- A #text-changed ^a\r\n\t- B #text-changed ^b\r\n```\n- C #text-changed ^a\n```\n';
+	const cleared = clearTextChanged(text, 'a');
+
+	assert.equal(cleared, text.replace('- A #text-changed', '- A'));
+	assert.deepEqual(parseItems(cleared).map((item) => [item.text, item.textChanged, item.children[0].textChanged]), [['A', false, true]]);
+	assert.throws(() => clearTextChanged(text, 'z'), /No item/);
+});
+
+test('relabelLinks updates links to that item in items fields only', () => {
+	const text = '## 2026-10-01 X\nid:: 1\nitems:: [[F#^a|Old]], [[F#^b|Other]], [[G#^a]]\n\nSee [[F#^a|Old]].\n';
+	const relabeled = relabelLinks(text, 'a', 'New | text');
+
+	assert.equal(relabeled, '## 2026-10-01 X\nid:: 1\nitems:: [[F#^a|New text]], [[F#^b|Other]], [[G#^a|New text]]\n\nSee [[F#^a|Old]].\n');
 });
