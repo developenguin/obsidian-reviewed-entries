@@ -152,10 +152,10 @@ filter: missing
 | Key | Required | Value |
 |---|---|---|
 | `db` | no | Path of the database note, with or without `.md`. Default: the note that contains the block. |
-| `view` | no | `overview` (default) or `inbox`. |
+| `view` | no | Tab to show first: `overview` (default) or `inbox`. |
 | `filter` | no | Overview only. Initial filter: `all` (default), `missing` or `drafts`. The overview also has a control to change it. |
 
-Both views are read-only in v1. Text sizes follow the note's font size.
+The block shows two tabs, **Overview** and **Inbox (N)**, with N the number of drafts. Both are read-only in v1. Text sizes follow the note's font size.
 
 ### Overview
 
@@ -177,7 +177,7 @@ Both views are read-only in v1. Text sizes follow the note's font size.
 
 ### Inbox
 
-For triaging drafts, e.g. in a separate note with `view: inbox`. A table of all `draft` entries, oldest first:
+For triaging drafts. For a separate inbox note, add a block with `db` and `view: inbox`. A table of all `draft` entries, oldest first:
 
 | Column | Shows |
 |---|---|

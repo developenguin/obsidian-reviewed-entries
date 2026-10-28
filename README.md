@@ -15,7 +15,7 @@ Obsidian plugin: a database of **items** (a hierarchy in Markdown files) and **e
    ```
    ````
 
-3. For triaging drafts, add a note with a block that has `db: <database note>` and `view: inbox`.
+3. Drafts to review are in the block's **Inbox** tab. For a separate inbox note, add a block with `db: <database note>` and `view: inbox`.
 4. Command **Reviewed Entries: Open database** opens a database note.
 
 ## Develop

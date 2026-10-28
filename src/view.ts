@@ -7,6 +7,7 @@ export const VIEWS = ['overview', 'inbox'] as const;
 export type View = (typeof VIEWS)[number];
 
 export interface ViewState {
+	view: View;
 	filter: Filter;
 	/** Open state per node key, set when the user toggles a row. */
 	open: Map<string, boolean>;
@@ -87,15 +88,77 @@ export function renderError(container: HTMLElement, message: string): void {
 export function renderDb(container: HTMLElement, db: Db, state: ViewState, handlers: ViewHandlers): void {
 	container.replaceChildren();
 	const root = el('div', 'rdb', undefined, container);
-	const missing = db.leaves.total - db.leaves.covered;
+	const id = `rdb-${instance++}`;
+	const drafts = db.entries.filter((entry) => entry.status === 'draft').length;
 
 	el('div', 'rdb-title', db.root.label, root);
-	el('p', 'rdb-summary', `${missing} of ${db.leaves.total} lowest-level items missing. ${counts(db.root) || 'No entries yet'}.`, root);
 
-	renderFilter(root, state, () => renderDb(container, db, state, handlers));
+	const tablist = el('div', 'rdb-tabs', undefined, root);
+	tablist.setAttribute('role', 'tablist');
+	const tabs: HTMLButtonElement[] = [];
+	const panels: HTMLElement[] = [];
+
+	const select = (view: View) => {
+		state.view = view;
+		VIEWS.forEach((name, i) => {
+			const selected = name === view;
+			tabs[i].setAttribute('aria-selected', String(selected));
+			tabs[i].tabIndex = selected ? 0 : -1;
+			panels[i].hidden = !selected;
+		});
+	};
+
+	VIEWS.forEach((view, i) => {
+		const tab = el('button', 'rdb-tab', view === 'inbox' ? `Inbox (${drafts})` : 'Overview', tablist);
+		tab.setAttribute('role', 'tab');
+		tab.id = `${id}-tab-${view}`;
+		tab.setAttribute('aria-controls', `${id}-panel-${view}`);
+		tab.addEventListener('click', () => select(view));
+		tab.addEventListener('keydown', (event) => {
+			const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
+
+			if (step) {
+				const next = (i + step + VIEWS.length) % VIEWS.length;
+				select(VIEWS[next]);
+				tabs[next].focus();
+			}
+		});
+		tabs.push(tab);
+
+		const panel = el('div', 'rdb-panel', undefined, root);
+		panel.setAttribute('role', 'tabpanel');
+		panel.id = `${id}-panel-${view}`;
+		panel.setAttribute('aria-labelledby', tab.id);
+		panels.push(panel);
+	});
+
+	renderOverview(panels[VIEWS.indexOf('overview')], db, state, handlers);
+	renderInbox(panels[VIEWS.indexOf('inbox')], db, handlers);
+	select(state.view);
+}
+
+function renderOverview(panel: HTMLElement, db: Db, state: ViewState, handlers: ViewHandlers): void {
+	const missing = db.leaves.total - db.leaves.covered;
+	el('p', 'rdb-summary', `${missing} of ${db.leaves.total} lowest-level items missing. ${counts(db.root) || 'No entries yet'}.`, panel);
+
+	const tree = el('div');
+	const renderTree = () => {
+		tree.replaceChildren();
+		const visible = db.root.children.filter((child) => matches(child, state.filter));
+
+		if (!visible.length) {
+			el('p', 'rdb-empty', db.root.children.length ? 'Nothing matches this filter.' : 'No items found.', tree);
+			return;
+		}
+
+		const list = el('ul', 'rdb-tree', undefined, tree);
+		visible.forEach((child) => renderNode(list, child, 1, state, handlers));
+	};
+
+	renderFilter(panel, state, renderTree);
 
 	if (db.warnings.length) {
-		const details = el('details', 'rdb-warnings', undefined, root);
+		const details = el('details', 'rdb-warnings', undefined, panel);
 		details.open = true;
 		el('summary', undefined, `Warnings (${db.warnings.length})`, details);
 		const list = el('ul', undefined, undefined, details);
@@ -107,15 +170,8 @@ export function renderDb(container: HTMLElement, db: Db, state: ViewState, handl
 		}
 	}
 
-	const visible = db.root.children.filter((child) => matches(child, state.filter));
-
-	if (!visible.length) {
-		el('p', 'rdb-empty', db.root.children.length ? 'Nothing matches this filter.' : 'No items found.', root);
-		return;
-	}
-
-	const tree = el('ul', 'rdb-tree', undefined, root);
-	visible.forEach((child) => renderNode(tree, child, 1, state, handlers));
+	panel.appendChild(tree);
+	renderTree();
 }
 
 function renderFilter(parent: HTMLElement, state: ViewState, rerender: () => void): void {
@@ -194,12 +250,9 @@ function renderEntry(parent: HTMLElement, entry: Entry, handlers: ViewHandlers):
 }
 
 /** All draft entries, oldest first, as a table. */
-export function renderInbox(container: HTMLElement, db: Db, handlers: ViewHandlers): void {
-	container.replaceChildren();
-	const root = el('div', 'rdb rdb-inbox', undefined, container);
+function renderInbox(root: HTMLElement, db: Db, handlers: ViewHandlers): void {
 	const drafts = db.entries.filter((entry) => entry.status === 'draft').sort((a, b) => a.date.localeCompare(b.date));
 
-	el('div', 'rdb-title', `${db.root.label}: inbox`, root);
 	el('p', 'rdb-summary', drafts.length ? `${plural(drafts.length, 'draft', 'drafts')} to review.` : 'No drafts to review.', root);
 
 	if (!drafts.length) {

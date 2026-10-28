@@ -11,7 +11,7 @@ import {
 	debounce,
 } from 'obsidian';
 import { type DbConfig, type Filter, FILTERS, buildDb, isDbFile, parseBlockParams, parseConfig } from './model';
-import { type View, type ViewState, VIEWS, renderDb, renderError, renderInbox } from './view';
+import { type View, type ViewState, VIEWS, renderDb, renderError } from './view';
 
 export default class ReviewedEntriesPlugin extends Plugin {
 	async onload(): Promise<void> {
@@ -75,7 +75,6 @@ class Block extends MarkdownRenderChild {
 	private app: App;
 	private source: string;
 	private ctx: MarkdownPostProcessorContext;
-	private view: View;
 	private state: ViewState;
 	private dbPath = '';
 	private config: DbConfig | null = null;
@@ -90,8 +89,7 @@ class Block extends MarkdownRenderChild {
 		const params = parseBlockParams(source);
 		const view = params['view'] as View;
 		const filter = params['filter'] as Filter;
-		this.view = VIEWS.includes(view) ? view : 'overview';
-		this.state = { filter: FILTERS.includes(filter) ? filter : 'all', open: new Map() };
+		this.state = { view: VIEWS.includes(view) ? view : 'overview', filter: FILTERS.includes(filter) ? filter : 'all', open: new Map() };
 	}
 
 	onload(): void {
@@ -150,10 +148,6 @@ class Block extends MarkdownRenderChild {
 			},
 		};
 
-		if (this.view === 'inbox') {
-			renderInbox(this.containerEl, db, handlers);
-		} else {
-			renderDb(this.containerEl, db, this.state, handlers);
-		}
+		renderDb(this.containerEl, db, this.state, handlers);
 	}
 }

@@ -231,3 +231,36 @@ div.rdb-row {
 	width: 35%;
 	min-width: 12em;
 }
+
+/* Tabs: the selected tab is marked by aria-selected, weight and an underline. */
+
+.rdb-tabs {
+	display: flex;
+	gap: var(--size-4-1);
+	border-bottom: var(--border-width) solid var(--background-modifier-border);
+	margin-block: var(--size-4-2) var(--size-4-3);
+}
+
+.rdb .rdb-tab {
+	background: none;
+	box-shadow: none;
+	border: none;
+	border-bottom: 2px solid transparent;
+	border-radius: 0;
+	margin-bottom: calc(-1 * var(--border-width));
+	padding: var(--size-4-2) var(--size-4-3);
+	height: auto;
+	font-size: inherit;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.rdb .rdb-tab:hover {
+	color: var(--text-normal);
+}
+
+.rdb .rdb-tab[aria-selected='true'] {
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+	border-bottom-color: var(--interactive-accent);
+}
