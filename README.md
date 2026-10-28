@@ -1,6 +1,6 @@
 # Reviewed Entries
 
-Obsidian plugin: a database of **items** (a hierarchy in Markdown files) and **entries** (append-only log records that link to items and carry a review status). Renders a read-only coverage overview in a note.
+Obsidian plugin: a database of **items** (a hierarchy in Markdown files) and **entries** (append-only log records that link to items and carry a review status). Renders a coverage overview and an inbox in a note, where you confirm, reject, edit and add entries.
 
 - Format and configuration: [docs/format.md](docs/format.md)
 - Works on desktop and mobile. Uses only Obsidian's public API; no other plugins needed.
@@ -41,6 +41,7 @@ OBSIDIAN_VAULT=~/path/to/vault yarn build
 
 | File | Role |
 |---|---|
-| `src/model.ts` | Parser and coverage logic. No Obsidian imports; Node scripts can import it directly. |
-| `src/view.ts` | Renders the overview into plain DOM. |
+| `src/model.ts` | Parser, coverage and entry writing (`setEntryStatus`, `replaceEntry`, `appendEntry`). No Obsidian imports; Node scripts can import it directly. |
+| `src/view.ts` | Renders the overview and inbox into plain DOM. |
+| `src/entry-modal.ts` | Form to edit or add an entry, with the item picker. |
 | `src/main.ts` | Obsidian glue: code block, command, file events. |

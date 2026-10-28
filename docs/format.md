@@ -127,7 +127,7 @@ items:: [[Spanish#^es-2|Reads a short story]]
 | `confirmed` | the user, after review | yes |
 | `rejected` | the user, after review | no |
 
-Log files are append-only: new entries go at the end, entries are never deleted. Review changes only the `status` line (and, in v2, the `items` line) of an existing entry.
+Log files are append-only: new entries go at the end, entries are never deleted. Confirm and reject change only the `status` line of an entry; see [Review](#review).
 
 ## Coverage
 
@@ -157,7 +157,7 @@ filter: missing
 | `view` | no | Tab to show first: `overview` (default) or `inbox`. |
 | `filter` | no | Overview only. Initial filter: `all` (default), `missing` or `drafts`. The overview also has a control to change it. |
 
-The block shows two tabs, **Overview** and **Inbox (N)**, with N the number of drafts. Both are read-only in v1. Text sizes follow the note's font size; secondary text never goes below 14px.
+The block shows two tabs, **Overview** and **Inbox (N)**, with N the number of drafts. Text sizes follow the note's font size; secondary text never goes below 14px.
 
 ### Overview
 
@@ -191,10 +191,14 @@ For triaging drafts. For a separate inbox note, add a block with `db` and `view:
 
 The command **Reviewed Entries: Open database** opens a database note; with several databases it asks which one.
 
-## v2 (planned, not built)
+## Review
 
-- **Confirm / reject** per entry, in the inbox and the overview: rewrites that entry's `status::` line, found by `id`, through `vault.process`.
-- **Re-link** per entry: an item picker (search over item text and its path) replaces the `items::` line.
-- **Manual entry**: a form with date, title, body and a searchable multi-select item picker. Appends an entry with `status:: confirmed` to `entries-folder/YYYY-MM.md`, creating the file if needed.
+Writes go through Obsidian's `vault.process`, which re-reads the file first, and find the entry by its `id`. An entry without an `id`, or with an `id` used twice, can't be reviewed from the views.
 
-These only touch the `status::` and `items::` lines of an entry, or append to the end of a file, so the v1 format needs no change.
+| Action | Where | Changes |
+|---|---|---|
+| Confirm, Reject | Inbox card | Only the entry's `status::` line. |
+| Edit | Inbox card, entry row in the overview | The whole entry: heading, `id`, `status`, `items`, other fields, body. Opens a form with title, date, status, description and linked items (searchable picker; retired items can't be picked). The entry stays in its file, also when its date changes. |
+| New entry | Button next to the tabs | Appends to `entries-folder/YYYY-MM.md` for the entry's date, creating the file (with a `# YYYY-MM` heading) if needed. Default status `confirmed`. |
+
+An edited or new entry is written in this layout: heading, then `id`, `status`, `items` and other fields one per line without list markers, a blank line, then the body. Body lines that would read as a heading (`# `, `## `) or a field (`key::`) are escaped with a backslash; lines inside code fences are kept as they are.

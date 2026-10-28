@@ -9,9 +9,30 @@ import {
 	Plugin,
 	TFile,
 	debounce,
+	normalizePath,
 } from 'obsidian';
-import { type DbConfig, type Filter, FILTERS, buildDb, isDbFile, parseBlockParams, parseConfig } from './model';
-import { type View, type ViewState, VIEWS, renderDb, renderError } from './view';
+import { EntryModal } from './entry-modal';
+import {
+	type Db,
+	type DbConfig,
+	type Entry,
+	type EntryInput,
+	type Filter,
+	type Node,
+	type Status,
+	FILTERS,
+	appendEntry,
+	buildDb,
+	entryInput,
+	formatEntry,
+	isDbFile,
+	newEntryId,
+	parseBlockParams,
+	parseConfig,
+	replaceEntry,
+	setEntryStatus,
+} from './model';
+import { type View, type ViewHandlers, type ViewState, VIEWS, renderDb, renderError } from './view';
 
 export default class ReviewedEntriesPlugin extends Plugin {
 	async onload(): Promise<void> {
@@ -135,7 +156,7 @@ class Block extends MarkdownRenderChild {
 		const sources = await Promise.all(files.map(async (file) => ({ path: file.path, text: await vault.cachedRead(file) })));
 
 		const db = buildDb(config, sources);
-		const handlers = {
+		const handlers: ViewHandlers = {
 			openLine: (path: string, line: number, event: MouseEvent) => {
 				const file = vault.getFileByPath(path);
 
@@ -146,8 +167,84 @@ class Block extends MarkdownRenderChild {
 			renderMarkdown: (el: HTMLElement, markdown: string) => {
 				void MarkdownRenderer.render(this.app, markdown, el, this.ctx.sourcePath, this);
 			},
+			review: this.review(config, db),
 		};
 
 		renderDb(this.containerEl, db, this.state, handlers);
 	}
+
+	/** Writes go through vault.process, which re-reads the file, so they act on its current text. */
+	private review(config: DbConfig, db: Db): ViewHandlers['review'] {
+		const { metadataCache, vault } = this.app;
+		const items = linkable(db.root);
+
+		const write = async (path: string, change: (text: string) => string) => {
+			const file = vault.getFileByPath(path);
+
+			if (!file) {
+				throw new Error(`${path} not found.`);
+			}
+
+			await vault.process(file, change);
+		};
+
+		const openForm = (heading: string, submitLabel: string, initial: EntryInput, path: string, save: (input: EntryInput) => Promise<void>) => {
+			new EntryModal(this.app, {
+				heading,
+				submitLabel,
+				initial,
+				items,
+				itemsById: db.itemsById,
+				linkTarget: (node: Node) => {
+					const file = vault.getFileByPath(node.path);
+					return file ? metadataCache.fileToLinktext(file, path, true) : node.path;
+				},
+				onSubmit: save,
+			}).open();
+		};
+
+		return {
+			setStatus: async (entry: Entry, status: Status) => {
+				try {
+					await write(entry.path, (text) => setEntryStatus(text, entry.id, status));
+				} catch (error) {
+					new Notice(`Could not update "${entry.title}": ${(error as Error).message}`);
+					throw error;
+				}
+			},
+			edit: (entry: Entry) => {
+				openForm('Edit entry', 'Save', entryInput(entry), entry.path, (input) =>
+					write(entry.path, (text) => replaceEntry(text, entry.id, input)),
+				);
+			},
+			create: () => {
+				// Local date: shift by the timezone offset before taking the ISO date.
+				const date = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+				const taken = new Set(db.entries.map((entry) => entry.id));
+				const initial: EntryInput = { id: '', date, title: '', status: 'confirmed', links: [], fields: {}, body: '' };
+				const logPath = (input: EntryInput) => normalizePath(`${config.entriesFolder}/${input.date.slice(0, 7)}.md`);
+
+				openForm('New entry', 'Add entry', initial, logPath(initial), async (input) => {
+					const entry = { ...input, id: newEntryId(input.date, taken) };
+					const path = logPath(entry);
+
+					if (vault.getFileByPath(path)) {
+						await write(path, (text) => appendEntry(text, entry));
+						return;
+					}
+
+					if (!vault.getFolderByPath(config.entriesFolder)) {
+						await vault.createFolder(config.entriesFolder);
+					}
+
+					await vault.create(path, `# ${entry.date.slice(0, 7)}\n\n${formatEntry(entry)}\n`);
+				});
+			},
+		};
+	}
+}
+
+/** Items an entry can be linked to: everything in the tree, not retired ones. */
+function linkable(node: Node): Node[] {
+	return node.children.flatMap((child) => (child.kind === 'item' ? [child, ...linkable(child)] : linkable(child)));
 }

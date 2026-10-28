@@ -31,6 +31,8 @@ export interface Item {
 }
 
 export interface Link {
+	/** Link target without the `#^id` part, e.g. a file name. */
+	target: string;
 	/** Block ID, or null when the link has no `#^id` part. */
 	id: string | null;
 	/** Alias, or the link target without the `#^id` part. */
@@ -48,7 +50,10 @@ export interface Entry {
 	/** Lines that are not fields, trimmed. */
 	body: string;
 	path: string;
+	/** 0-based line of the heading. */
 	line: number;
+	/** 0-based line after the entry. */
+	end: number;
 }
 
 export interface Node {
@@ -154,13 +159,20 @@ export function parseBlockParams(source: string): Record<string, string> {
 	return params;
 }
 
-/** Lines outside frontmatter and code fences, with 0-based line numbers. */
-function contentLines(text: string): { line: number; text: string }[] {
+interface Line {
+	line: number;
+	text: string;
+	/** A code fence marker or a line inside a fence. */
+	code: boolean;
+}
+
+/** Lines after the frontmatter, if any, with 0-based line numbers. */
+function contentLines(text: string, frontmatter = true): Line[] {
 	const lines = text.split(/\r?\n/);
-	const result: { line: number; text: string }[] = [];
+	const result: Line[] = [];
 	let start = 0;
 
-	if (lines[0] === '---') {
+	if (frontmatter && lines[0] === '---') {
 		const end = lines.indexOf('---', 1);
 		start = end === -1 ? 0 : end + 1;
 	}
@@ -169,14 +181,12 @@ function contentLines(text: string): { line: number; text: string }[] {
 
 	for (let i = start; i < lines.length; i++) {
 		const marker = /^\s*(`{3,}|~{3,})/.exec(lines[i])?.[1];
+		const isMarker = marker !== undefined && (fence === null || marker.startsWith(fence));
 
-		if (marker && (fence === null || marker.startsWith(fence))) {
+		result.push({ line: i, text: lines[i], code: isMarker || fence !== null });
+
+		if (isMarker) {
 			fence = fence === null ? marker : null;
-			continue;
-		}
-
-		if (fence === null) {
-			result.push({ line: i, text: lines[i] });
 		}
 	}
 
@@ -206,7 +216,7 @@ export function parseItems(text: string): Item[] {
 	const roots: Item[] = [];
 	const stack: { indent: number; item: Item | null }[] = [];
 
-	for (const { line, text: content } of contentLines(text)) {
+	for (const { line, text: content } of contentLines(text).filter((l) => !l.code)) {
 		const match = LIST_ITEM.exec(content);
 
 		if (!match) {
@@ -257,8 +267,19 @@ export function parseEntries(path: string, text: string): Entry[] {
 	const entries: Entry[] = [];
 	let current: Entry | null = null;
 
-	for (const { line, text: content } of contentLines(text)) {
+	const lines = contentLines(text);
+
+	for (const { line, text: content, code } of lines) {
+		if (code) {
+			if (current) current.body += `${content}\n`;
+			continue;
+		}
+
 		const heading = ENTRY_HEADING.exec(content);
+
+		if (current && (heading || OTHER_HEADING.test(content))) {
+			current.end = line;
+		}
 
 		if (heading) {
 			const dated = /^(\d{4}-\d{2}-\d{2})\s+(.*)$/.exec(heading[1]);
@@ -272,6 +293,7 @@ export function parseEntries(path: string, text: string): Entry[] {
 				body: '',
 				path,
 				line,
+				end: line + 1,
 			};
 			entries.push(current);
 			continue;
@@ -299,9 +321,13 @@ export function parseEntries(path: string, text: string): Entry[] {
 		if (key === 'items') {
 			for (const link of value.matchAll(WIKILINK)) {
 				const [target, blockId] = link[1].split('#^');
-				current.links.push({ id: blockId ?? null, text: link[2] ?? target });
+				current.links.push({ target, id: blockId ?? null, text: link[2] ?? target });
 			}
 		}
+	}
+
+	if (current) {
+		current.end = (lines.at(-1)?.line ?? 0) + 1;
 	}
 
 	for (const entry of entries) {
@@ -311,6 +337,130 @@ export function parseEntries(path: string, text: string): Entry[] {
 	}
 
 	return entries;
+}
+
+export interface EntryInput {
+	id: string;
+	date: string;
+	title: string;
+	status: Status;
+	links: Link[];
+	/** Fields other than id, status and items, kept as they are. */
+	fields: Record<string, string>;
+	body: string;
+}
+
+const BASE_FIELDS = ['id', 'status', 'items'];
+
+export function entryInput(entry: Entry): EntryInput {
+	const fields = Object.fromEntries(Object.entries(entry.fields).filter(([key]) => !BASE_FIELDS.includes(key)));
+	const status = (STATUSES as readonly string[]).includes(entry.status) ? (entry.status as Status) : 'draft';
+
+	return { id: entry.id, date: entry.date, title: entry.title, status, links: entry.links, fields, body: entry.body };
+}
+
+/** One line of plain text, safe inside a heading, field or link alias. */
+function inline(text: string, unsafe = /[\r\n]+/g): string {
+	return text.replace(unsafe, ' ').replace(/\s+/g, ' ').trim();
+}
+
+export function formatLink(link: Link): string {
+	const target = link.id === null ? link.target : `${link.target}#^${link.id}`;
+
+	return `[[${target}|${inline(link.text, /[\r\n|[\]]+/g)}]]`;
+}
+
+/**
+ * Escape body lines that would otherwise end the entry (headings) or read as
+ * fields (`key::`). Lines inside code fences stay as they are.
+ */
+function escapeBody(body: string): string {
+	return contentLines(body, false)
+		.map(({ text, code }) => {
+			if (code) return text;
+			if (/^#{1,2}[ \t]/.test(text)) return `\\${text}`;
+
+			return FIELD.test(text) ? text.replace('::', '\\::') : text;
+		})
+		.join('\n');
+}
+
+/** The entry as Markdown, without a trailing newline. */
+export function formatEntry(entry: EntryInput): string {
+	const lines = [
+		`## ${inline(`${entry.date} ${entry.title}`)}`,
+		`id:: ${inline(entry.id)}`,
+		`status:: ${entry.status}`,
+		`items:: ${entry.links.map(formatLink).join(', ')}`,
+		...Object.entries(entry.fields).map(([key, value]) => `${key}:: ${inline(value)}`),
+	];
+	const body = entry.body.trim();
+
+	return body ? `${lines.join('\n')}\n\n${escapeBody(body)}` : lines.join('\n');
+}
+
+/** The one entry with this ID in a file's text; throws when there is none or more than one. */
+function findEntry(text: string, id: string): Entry {
+	const matches = parseEntries('', text).filter((entry) => entry.id === id);
+
+	if (matches.length !== 1) {
+		throw new Error(matches.length ? `Entry ID ${id} is used more than once in this file.` : `No entry with ID ${id} in this file.`);
+	}
+
+	return matches[0];
+}
+
+/** Rewrite only the status line of one entry. */
+export function setEntryStatus(text: string, id: string, status: Status): string {
+	const entry = findEntry(text, id);
+	const lines = text.split('\n');
+	const statusLine = /^([ \t]*(?:[-*+][ \t]+)?status::[ \t]*).*?(\r?)$/i;
+
+	for (let i = entry.line + 1; i < entry.end; i++) {
+		if (statusLine.test(lines[i])) {
+			lines[i] = lines[i].replace(statusLine, `$1${status}$2`);
+			return lines.join('\n');
+		}
+	}
+
+	lines.splice(entry.line + 1, 0, `status:: ${status}`);
+
+	return lines.join('\n');
+}
+
+/** Replace one entry with new content. Blank lines after it stay. */
+export function replaceEntry(text: string, id: string, input: EntryInput): string {
+	const entry = findEntry(text, id);
+	const lines = text.split('\n');
+	let end = entry.end;
+
+	while (end > entry.line + 1 && !lines[end - 1].trim()) {
+		end--;
+	}
+
+	lines.splice(entry.line, end - entry.line, formatEntry(input));
+
+	return lines.join('\n');
+}
+
+/** Add an entry at the end of a log file. */
+export function appendEntry(text: string, input: EntryInput): string {
+	const trimmed = text.replace(/\s+$/, '');
+
+	return `${trimmed}${trimmed ? '\n\n' : ''}${formatEntry(input)}\n`;
+}
+
+/** `YYYYMMDD-` plus 4 hex characters, not in `taken`. */
+export function newEntryId(date: string, taken: Set<string>, random: () => number = Math.random): string {
+	const prefix = date.replace(/-/g, '');
+
+	for (;;) {
+		const id = `${prefix}-${Math.floor(random() * 0x10000).toString(16).padStart(4, '0')}`;
+
+		if (!taken.has(id)) {
+			return id;
+		}
+	}
 }
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });

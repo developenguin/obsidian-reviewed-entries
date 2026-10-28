@@ -1,7 +1,7 @@
 // Renders a Db into plain DOM. No Obsidian imports, so a browser page can
 // preview it; main.ts supplies navigation and Markdown rendering.
 
-import { type Db, type Entry, type Filter, type Node, FILTERS, matches } from './model';
+import { type Db, type Entry, type Filter, type Node, type Status, FILTERS, matches } from './model';
 
 export const VIEWS = ['overview', 'inbox'] as const;
 export type View = (typeof VIEWS)[number];
@@ -18,6 +18,12 @@ export interface ViewHandlers {
 	openLine(path: string, line: number, event: MouseEvent): void;
 	/** Render Markdown into `el`. Without it, text is shown as-is. */
 	renderMarkdown?(el: HTMLElement, markdown: string): void;
+	/** Review actions. Without them, the view is read-only. */
+	review?: {
+		setStatus(entry: Entry, status: Status): Promise<void>;
+		edit(entry: Entry): void;
+		create(): void;
+	};
 }
 
 const FILTER_LABELS: Record<Filter, string> = {
@@ -69,6 +75,22 @@ function link(parent: HTMLElement, text: string, path: string, line: number, han
 	return a;
 }
 
+function button(parent: HTMLElement, text: string, cls: string, onClick: () => void): HTMLButtonElement {
+	const element = el('button', cls, text, parent);
+	element.type = 'button';
+	element.addEventListener('click', onClick);
+
+	return element;
+}
+
+/** Entries with a unique id; others can't be written back safely. */
+function reviewable(db: Db): (entry: Entry) => boolean {
+	const counts = new Map<string, number>();
+	db.entries.forEach((entry) => counts.set(entry.id, (counts.get(entry.id) ?? 0) + 1));
+
+	return (entry) => entry.id !== '' && counts.get(entry.id) === 1;
+}
+
 function pill(parent: HTMLElement, text: string, modifier: string): void {
 	el('span', `rdb-pill is-${modifier}`, text, parent);
 }
@@ -110,7 +132,8 @@ export function renderDb(container: HTMLElement, db: Db, state: ViewState, handl
 
 	el('div', 'rdb-title', db.root.label, root);
 
-	const tablist = el('div', 'rdb-tabs', undefined, root);
+	const bar = el('div', 'rdb-tabbar', undefined, root);
+	const tablist = el('div', 'rdb-tabs', undefined, bar);
 	tablist.setAttribute('role', 'tablist');
 	const tabs: HTMLButtonElement[] = [];
 	const panels: HTMLElement[] = [];
@@ -155,6 +178,12 @@ export function renderDb(container: HTMLElement, db: Db, state: ViewState, handl
 		panels.push(panel);
 	});
 
+	const review = handlers.review;
+
+	if (review) {
+		button(bar, 'New entry', 'rdb-new-entry', () => review.create());
+	}
+
 	renderOverview(panels[VIEWS.indexOf('overview')], db, state, handlers);
 	renderInbox(panels[VIEWS.indexOf('inbox')], db, handlers);
 	select(state.view);
@@ -172,7 +201,15 @@ function renderStats(parent: HTMLElement, stats: [label: string, value: number, 
 	}
 }
 
+interface TreeContext {
+	state: ViewState;
+	handlers: ViewHandlers;
+	canReview: (entry: Entry) => boolean;
+}
+
 function renderOverview(panel: HTMLElement, db: Db, state: ViewState, handlers: ViewHandlers): void {
+	const ctx: TreeContext = { state, handlers, canReview: reviewable(db) };
+
 	renderStats(panel, [
 		['Missing', db.leaves.total - db.leaves.covered, `of ${db.leaves.total} lowest-level items`],
 		['Entries', db.root.confirmed, 'confirmed'],
@@ -189,7 +226,7 @@ function renderOverview(panel: HTMLElement, db: Db, state: ViewState, handlers: 
 		}
 
 		for (const group of visible) {
-			renderNode(el('ul', 'rdb-card rdb-tree', undefined, content), group, 1, state, handlers);
+			renderNode(el('ul', 'rdb-card rdb-tree', undefined, content), group, 1, ctx);
 		}
 
 		const retired = state.filter === 'missing' ? [] : db.retired.filter((node) => matches(node, state.filter));
@@ -198,7 +235,7 @@ function renderOverview(panel: HTMLElement, db: Db, state: ViewState, handlers: 
 			const details = section(content, 'rdb-card rdb-retired', RETIRED_KEY, `Retired (${retired.length})`, state, false);
 			el('p', 'rdb-note', 'No longer part of the database. Kept with their entries, not counted.', details);
 			const list = el('ul', 'rdb-tree', undefined, details);
-			retired.forEach((node) => renderNode(list, node, OPEN_DEPTH, state, handlers, true));
+			retired.forEach((node) => renderNode(list, node, OPEN_DEPTH, ctx, true));
 		}
 	};
 
@@ -241,7 +278,8 @@ function renderFilter(parent: HTMLElement, state: ViewState, rerender: () => voi
 	}
 }
 
-function renderNode(parent: HTMLElement, node: Node, depth: number, state: ViewState, handlers: ViewHandlers, showTrail = false): void {
+function renderNode(parent: HTMLElement, node: Node, depth: number, ctx: TreeContext, showTrail = false): void {
+	const { state } = ctx;
 	const li = el('li', `rdb-node rdb-${node.kind} rdb-depth-${Math.min(depth, 3)}`, undefined, parent);
 	const children = node.children.filter((child) => matches(child, state.filter));
 	const entries = state.filter === 'drafts' ? node.entries.filter((entry) => entry.status === 'draft') : node.entries;
@@ -277,12 +315,12 @@ function renderNode(parent: HTMLElement, node: Node, depth: number, state: ViewS
 
 	if (entries.length) {
 		const list = el('ul', 'rdb-entries', undefined, details);
-		entries.forEach((entry) => renderEntry(list, entry, handlers));
+		entries.forEach((entry) => renderEntry(list, entry, ctx));
 	}
 
 	if (children.length) {
 		const list = el('ul', 'rdb-tree', undefined, details);
-		children.forEach((child) => renderNode(list, child, depth + 1, state, handlers));
+		children.forEach((child) => renderNode(list, child, depth + 1, ctx));
 	}
 }
 
@@ -291,11 +329,17 @@ function statusPill(parent: HTMLElement, entry: Entry): void {
 	pill(parent, known ?? `Unknown status${entry.status ? `: ${entry.status}` : ''}`, known ? entry.status : 'error');
 }
 
-function renderEntry(parent: HTMLElement, entry: Entry, handlers: ViewHandlers): void {
+function renderEntry(parent: HTMLElement, entry: Entry, { handlers, canReview }: TreeContext): void {
 	const li = el('li', `rdb-entry is-${entry.status || 'unknown'}`, undefined, parent);
 	el('span', 'rdb-date', entry.date, li);
 	link(li, entry.title || 'Untitled entry', entry.path, entry.line, handlers);
 	statusPill(li, entry);
+
+	const review = handlers.review;
+
+	if (review && canReview(entry)) {
+		button(li, 'Edit', 'rdb-button-quiet', () => review.edit(entry)).setAttribute('aria-label', `Edit ${entry.title}`);
+	}
 }
 
 /** All draft entries, oldest first, one card each. */
@@ -309,6 +353,7 @@ function renderInbox(panel: HTMLElement, db: Db, handlers: ViewHandlers): void {
 
 	el('p', 'rdb-summary', `${plural(drafts.length, 'draft', 'drafts')} to review, oldest first.`, panel);
 	const list = el('ol', 'rdb-inbox', undefined, panel);
+	const canReview = reviewable(db);
 
 	for (const entry of drafts) {
 		const card = el('li', 'rdb-card rdb-entry-card', undefined, list);
@@ -358,5 +403,42 @@ function renderInbox(panel: HTMLElement, db: Db, handlers: ViewHandlers): void {
 
 			el('div', 'rdb-trail', node.trail.join(' › '), chip);
 		}
+
+		if (handlers.review) {
+			renderActions(card, entry, handlers.review, canReview(entry));
+		}
 	}
+}
+
+function renderActions(card: HTMLElement, entry: Entry, review: NonNullable<ViewHandlers['review']>, enabled: boolean): void {
+	const actions = el('div', 'rdb-actions', undefined, card);
+
+	if (!enabled) {
+		el('p', 'rdb-note', 'Give this entry a unique id to review it here.', actions);
+		return;
+	}
+
+	const name = entry.title || 'Untitled entry';
+	const decide = (status: Status, done: string) => async () => {
+		buttons.forEach((b) => (b.disabled = true));
+
+		try {
+			await review.setStatus(entry, status);
+			// The view re-renders once the file is saved; until then, show the outcome.
+			actions.replaceChildren();
+			pill(actions, done, status);
+		} catch {
+			buttons.forEach((b) => (b.disabled = false));
+		}
+	};
+
+	const buttons = [
+		button(actions, 'Confirm', 'mod-cta', decide('confirmed', 'Confirmed')),
+		button(actions, 'Reject', 'rdb-button-reject', decide('rejected', 'Rejected')),
+		button(actions, 'Edit', 'rdb-button-quiet', () => review.edit(entry)),
+	];
+
+	buttons[0].setAttribute('aria-label', `Confirm ${name}`);
+	buttons[1].setAttribute('aria-label', `Reject ${name}`);
+	buttons[2].setAttribute('aria-label', `Edit ${name}`);
 }

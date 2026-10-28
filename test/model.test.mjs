@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { test } from 'node:test';
-import { buildDb, parseConfig, parseEntries, parseItems } from '../src/model.ts';
+import { appendEntry, buildDb, entryInput, formatEntry, newEntryId, parseConfig, parseEntries, parseItems, replaceEntry, setEntryStatus } from '../src/model.ts';
 
 const vault = new URL('../fixture/', import.meta.url).pathname;
 
@@ -123,4 +123,66 @@ test('fixture: warnings', async () => {
 	for (const warning of db.warnings) {
 		assert.doesNotMatch(warning.message, /\^|\[\[|2026\d{4}-/, warning.message);
 	}
+});
+
+const LOG = `# 2026-10
+
+## 2026-10-01 First
+id:: a1
+- status:: draft
+items:: [[F#^x|X]]
+source:: notes
+
+Body with code:
+
+\`\`\`
+## not a heading
+key:: not a field
+\`\`\`
+
+## 2026-10-02 Second
+id:: b2
+status:: draft
+items:: [[F#^y|Y]]
+`;
+
+test('setEntryStatus rewrites only that status line', () => {
+	const out = setEntryStatus(LOG, 'a1', 'confirmed');
+
+	assert.equal(out, LOG.replace('- status:: draft', '- status:: confirmed'));
+	assert.deepEqual(parseEntries('', out).map((entry) => entry.status), ['confirmed', 'draft']);
+	assert.throws(() => setEntryStatus(LOG, 'zz', 'confirmed'), /No entry/);
+	assert.throws(() => setEntryStatus(LOG.replace('id:: b2', 'id:: a1'), 'a1', 'confirmed'), /more than once/);
+});
+
+test('replaceEntry round-trips and keeps the rest of the file', () => {
+	const [first, second] = parseEntries('', LOG);
+	const input = { ...entryInput(first), title: 'First, edited', status: 'confirmed' };
+	const out = replaceEntry(LOG, 'a1', input);
+	const [edited, untouched] = parseEntries('', out);
+
+	assert.equal(edited.title, 'First, edited');
+	assert.equal(edited.status, 'confirmed');
+	assert.equal(edited.fields.source, 'notes');
+	assert.equal(edited.body, first.body);
+	assert.match(edited.body, /## not a heading/);
+	assert.deepEqual({ ...untouched, line: 0, end: 0 }, { ...second, line: 0, end: 0 });
+	assert.equal(replaceEntry(LOG, 'a1', entryInput(first)).split('\n## 2026-10-02')[1], LOG.split('\n## 2026-10-02')[1]);
+});
+
+test('formatEntry escapes body lines that would break the entry', () => {
+	const input = { id: 'c3', date: '2026-10-03', title: 'T', status: 'draft', fields: {}, links: [{ target: 'F', id: 'x', text: 'A | B ]]' }], body: '## Heading\nkey:: value\n---' };
+	const [entry] = parseEntries('', formatEntry(input));
+
+	assert.equal(entry.fields.key, undefined);
+	assert.deepEqual(entry.links.map((link) => [link.id, link.text]), [['x', 'A B']]);
+	assert.equal(entry.body, '\\## Heading\nkey\\:: value\n---');
+});
+
+test('appendEntry and newEntryId', () => {
+	const input = { id: newEntryId('2026-10-04', new Set(['20261004-0000']), () => 0.5), date: '2026-10-04', title: 'New', status: 'confirmed', fields: {}, links: [], body: '' };
+
+	assert.equal(input.id, '20261004-8000');
+	assert.deepEqual(parseEntries('', appendEntry(LOG, input)).map((entry) => entry.id), ['a1', 'b2', '20261004-8000']);
+	assert.equal(appendEntry('', input), `${formatEntry(input)}\n`);
 });
