@@ -68,9 +68,10 @@ Optional free text. Headings and paragraphs are ignored.
 - **Item**: a list item (`-`, `*`, `+` or `1.`) whose first line ends in a block ID.
 - **Block ID**: `^` followed by letters, digits and `-`, at the end of the line. Obsidian hides it in Reading view and Live Preview.
 - **ID scope**: unique across all item files of the database. The importer generates IDs and keeps them stable when text changes.
-- **Text**: the first line without the block ID and without the `#text-changed` tag. Continuation lines are ignored.
+- **Text**: the first line without the block ID and without the `#text-changed` and `#retired` tags. Continuation lines are ignored.
 - **Parent**: the nearest enclosing list item that is an item. List items without a block ID are skipped; their children attach to the next item up, or to the file.
 - **Text changed**: the `#text-changed` tag marks an item whose text the importer changed after entries may have been linked to it. The overview warns until the user removes the tag.
+- **Retired**: the `#retired` tag marks an item that is no longer part of the database. The importer retires items instead of deleting them, so entries keep resolving. A retired item and its children leave the tree and coverage, and show in a separate Retired section with their entries. Only delete an item when no entry links to it.
 - **File title**: the `title` property, or the file name without `.md`.
 
 ## Entries
@@ -135,6 +136,7 @@ Log files are append-only: new entries go at the end, entries are never deleted.
   - `all`: every child is covered.
   - `any`: at least one child is covered.
 - A group with no items at all is not shown.
+- Retired items are left out: they don't count as missing, and don't count towards their parent.
 - An entry linked to an item with children counts in that item's totals, but does not cover the children or the item.
 
 Counts per row are distinct entries in that row's subtree: an entry linked to two children of one item counts once for that item.
@@ -159,15 +161,16 @@ The block shows two tabs, **Overview** and **Inbox (N)**, with N the number of d
 
 ### Overview
 
-- One collapsible row per group and item, with a `Missing` label when the row is not covered, and counts as `N entries · N drafts`. `entries` counts confirmed entries only; zero counts are left out.
+- Totals: missing lowest-level items, confirmed entries and drafts.
+- One card per top-level group, with a collapsible row per group and item: a `Missing` label when the row is not covered, and counts as `N entries · N drafts`. `entries` counts confirmed entries only; zero counts are left out.
 - Under each item, its linked entries: date, title (links to the entry), status as text.
-- Summary: how many lowest-level items are missing, and the totals.
+- A collapsed **Retired** section after the tree: retired items with their path and entries.
 - Filters: `missing` shows only rows that are not covered; `drafts` shows only rows with draft entries in their subtree, and only their draft entries.
-- Warnings, listed above the tree. Messages name entries by date and title and items by text, never by ID:
+- Warnings, in a collapsed section above the tree. Messages name entries by date and title and items by text, never by ID:
 
 | Warning | Cause |
 |---|---|
-| Broken link | An entry links to a block ID that no item has. |
+| Broken link | An entry links to a block ID that no item has. Retire items instead of deleting them. |
 | Text changed | An item has the `#text-changed` tag. |
 | Duplicate ID | Two items, or two entries, share an ID. |
 | Invalid status | An entry has no `status`, or a value other than the three statuses. |
@@ -177,13 +180,12 @@ The block shows two tabs, **Overview** and **Inbox (N)**, with N the number of d
 
 ### Inbox
 
-For triaging drafts. For a separate inbox note, add a block with `db` and `view: inbox`. A table of all `draft` entries, oldest first:
+For triaging drafts. For a separate inbox note, add a block with `db` and `view: inbox`. One card per `draft` entry, oldest first:
 
-| Column | Shows |
-|---|---|
-| Date | The entry date. |
-| Entry | Title (links to the entry), body rendered as Markdown, other fields as `key: value`. |
-| Items | Per link: current item text (links to the item), its path, and `Text changed`, `No longer exists` or `Not an item` where that applies. |
+- Title (links to the entry) and date.
+- Body, rendered as Markdown.
+- Other fields as `key: value`.
+- Linked items: current text (links to the item), its path, and `Retired`, `Text changed`, `No longer exists` or `Not an item` where that applies.
 
 ### Command
 

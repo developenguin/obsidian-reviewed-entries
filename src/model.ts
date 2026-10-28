@@ -8,8 +8,6 @@ export type Status = (typeof STATUSES)[number];
 export const FILTERS = ['all', 'missing', 'drafts'] as const;
 export type Filter = (typeof FILTERS)[number];
 
-export const TEXT_CHANGED_TAG = '#text-changed';
-
 export interface DbConfig {
 	name: string;
 	itemsFolder: string;
@@ -27,6 +25,7 @@ export interface Item {
 	id: string;
 	text: string;
 	textChanged: boolean;
+	retired: boolean;
 	line: number;
 	children: Item[];
 }
@@ -62,6 +61,8 @@ export interface Node {
 	path: string;
 	line: number;
 	textChanged: boolean;
+	/** Tagged #retired, or inside a retired item. Kept out of coverage. */
+	retired: boolean;
 	children: Node[];
 	/** Entries linked directly to this item, any status. */
 	entries: Entry[];
@@ -89,6 +90,8 @@ export interface Warning {
 
 export interface Db {
 	root: Node;
+	/** Outermost retired items, taken out of the tree with their children. */
+	retired: Node[];
 	itemsById: Map<string, Node>;
 	/** All entries, in file and line order. */
 	entries: Entry[];
@@ -190,6 +193,10 @@ export function frontmatterTitle(text: string): string | null {
 const LIST_ITEM = /^([ \t]*)(?:[-*+]|\d+[.)])[ \t]+(.*)$/;
 const BLOCK_ID = /[ \t]\^([A-Za-z0-9-]+)[ \t]*$/;
 
+function hasTag(text: string, tag: string): boolean {
+	return new RegExp(`(^|\\s)#${tag}(\\s|$)`).test(text);
+}
+
 function indentWidth(indent: string): number {
 	return indent.replace(/\t/g, '    ').length;
 }
@@ -224,8 +231,9 @@ export function parseItems(text: string): Item[] {
 			const body = match[2].replace(BLOCK_ID, '');
 			item = {
 				id,
-				text: body.replace(/(^|\s)#text-changed(?=\s|$)/g, '$1').replace(/\s+/g, ' ').trim(),
-				textChanged: /(^|\s)#text-changed(\s|$)/.test(body),
+				text: body.replace(/(^|\s)#(text-changed|retired)(?=\s|$)/g, '$1').replace(/\s+/g, ' ').trim(),
+				textChanged: hasTag(body, 'text-changed'),
+				retired: hasTag(body, 'retired'),
 				line,
 				children: [],
 			};
@@ -316,7 +324,7 @@ export function isDbFile(config: DbConfig, path: string): boolean {
 }
 
 function newNode(key: string, kind: Node['kind'], label: string, path: string, line = 0): Node {
-	return { key, kind, label, trail: [], path, line, textChanged: false, children: [], entries: [], covered: false, confirmed: 0, drafts: 0 };
+	return { key, kind, label, trail: [], path, line, textChanged: false, retired: false, children: [], entries: [], covered: false, confirmed: 0, drafts: 0 };
 }
 
 /**
@@ -348,6 +356,7 @@ export function buildDb(config: DbConfig, files: SourceFile[]): Db {
 		for (const item of items) {
 			const node = newNode(item.id, 'item', item.text, path, item.line);
 			node.textChanged = item.textChanged;
+			node.retired = parent.retired || item.retired;
 			parent.children.push(node);
 
 			const first = itemsById.get(item.id);
@@ -359,7 +368,7 @@ export function buildDb(config: DbConfig, files: SourceFile[]): Db {
 				itemsById.set(item.id, node);
 			}
 
-			if (item.textChanged) {
+			if (item.textChanged && !node.retired) {
 				warnings.push({ kind: 'Text changed', message: `"${item.text}" (${parent.label})`, path, line: item.line });
 			}
 
@@ -413,11 +422,14 @@ export function buildDb(config: DbConfig, files: SourceFile[]): Db {
 		node.children.forEach(sortGroups);
 	};
 
-	prune(root);
+	setTrails(root, null);
 	sortGroups(root);
-	finish(root, config.coverage, null);
+	const retired = extractRetired(root);
+	prune(root);
+	finish(root, config.coverage);
+	retired.forEach((node) => finish(node, config.coverage));
 
-	return { root, itemsById, entries, warnings, leaves: countLeaves(root) };
+	return { root, retired, itemsById, entries, warnings, leaves: countLeaves(root) };
 }
 
 export function entryName(entry: Entry): string {
@@ -476,15 +488,27 @@ function prune(node: Node): boolean {
 	return node.children.length > 0;
 }
 
-/** Fill trail, covered and counts. Returns the distinct entries in the subtree. */
-function finish(node: Node, rule: DbConfig['coverage'], trail: string[] | null): Set<Entry> {
-	const subtree = new Set(node.entries);
+/** The root (trail null) stays out of its descendants' trails. */
+function setTrails(node: Node, trail: string[] | null): void {
 	node.trail = trail ?? [];
-	// The root (trail null) stays out of its descendants' trails.
 	const childTrail = trail === null ? [] : [...trail, node.label];
+	node.children.forEach((child) => setTrails(child, childTrail));
+}
+
+/** Remove the outermost retired items from the tree and return them. */
+function extractRetired(node: Node): Node[] {
+	const retired = node.children.filter((child) => child.retired);
+	node.children = node.children.filter((child) => !child.retired);
+
+	return [...retired, ...node.children.flatMap(extractRetired)];
+}
+
+/** Fill covered and counts. Returns the distinct entries in the subtree. */
+function finish(node: Node, rule: DbConfig['coverage']): Set<Entry> {
+	const subtree = new Set(node.entries);
 
 	for (const child of node.children) {
-		finish(child, rule, childTrail).forEach((entry) => subtree.add(entry));
+		finish(child, rule).forEach((entry) => subtree.add(entry));
 	}
 
 	for (const entry of subtree) {

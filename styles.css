@@ -1,255 +1,73 @@
-/* Status is always in the text; colour and weight only reinforce it.
+/* Reviewed Entries
+   Colours, radii and spacing come from Obsidian's theme variables, so themes and dark mode apply.
+   Status is always in the text; colour and shape only reinforce it.
    Sizes are relative, so the note's font size (Settings → Appearance) applies. */
 
 .rdb {
-	--rdb-indent: 1.25em;
+	--rdb-space: var(--size-4-3);
+	--rdb-space-l: var(--size-4-5);
+	--rdb-radius: var(--radius-l);
+	--rdb-border: var(--background-modifier-border);
+	--rdb-surface: var(--background-secondary);
 	--rdb-small: 0.875em;
+	--rdb-xsmall: 0.8em;
+	line-height: 1.5;
 }
 
-.rdb-title {
-	font-size: var(--h3-size);
-	font-weight: var(--h3-weight);
-}
-
-.rdb-summary,
-.rdb-empty {
-	color: var(--text-muted);
-	margin-block: var(--size-4-1) var(--size-4-3);
-}
-
-.rdb-error {
-	color: var(--text-error);
-}
-
-.rdb-filter {
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--size-4-2) var(--size-4-4);
-	border: var(--border-width) solid var(--background-modifier-border);
-	border-radius: var(--radius-m);
-	padding: var(--size-4-2) var(--size-4-3);
-	margin: 0 0 var(--size-4-3);
-}
-
-.rdb-filter legend {
-	padding-inline: var(--size-4-1);
-	color: var(--text-muted);
-}
-
-.rdb-filter label {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--size-4-1);
-}
-
-.rdb-warnings {
-	border: var(--border-width) solid var(--background-modifier-border);
-	border-inline-start: 3px solid var(--text-warning);
-	border-radius: var(--radius-m);
-	padding: var(--size-4-2) var(--size-4-3);
-	margin-bottom: var(--size-4-3);
-}
-
-.rdb-warnings summary {
-	font-weight: var(--font-semibold);
-	cursor: pointer;
-}
-
-.rdb-warnings ul {
-	margin-block: var(--size-4-2) 0;
-}
-
-/* Override the note's list indentation and bullets inside the tree. */
-.rdb .rdb-tree,
-.rdb .rdb-entries,
-.rdb .rdb-items {
+/* Reset the note's list styles inside the plugin. Keep this specificity at
+   two classes, so the component rules below can override it. */
+.rdb :is(.rdb-tree, .rdb-entries, .rdb-chips, .rdb-inbox, .rdb-warning-list) {
 	list-style: none;
-	margin: 0;
-	padding-inline-start: 0;
-}
-
-.rdb .rdb-tree li,
-.rdb .rdb-entries li,
-.rdb .rdb-items li {
 	margin: 0;
 	padding: 0;
 }
 
-.rdb .rdb-tree .rdb-tree {
-	padding-inline-start: var(--rdb-indent);
+.rdb :is(.rdb-tree, .rdb-entries, .rdb-chips, .rdb-inbox, .rdb-warning-list) > li {
+	margin: 0;
 }
 
-.rdb .rdb-entries {
-	padding-inline-start: calc(var(--rdb-indent) + 1em);
+.rdb :is(dl, dd) {
+	margin: 0;
 }
 
-.rdb-row {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: baseline;
-	gap: var(--size-4-1) var(--size-4-3);
-	padding: var(--size-4-1) var(--size-4-2);
-	border-radius: var(--radius-s);
-}
-
-summary.rdb-row {
-	cursor: pointer;
-	list-style: none;
-}
-
-summary.rdb-row::-webkit-details-marker {
-	display: none;
-}
-
-/* display: flex drops the native marker, so draw one. */
-summary.rdb-row::before {
-	content: '▸';
-	width: 1em;
-	margin-inline-end: calc(-1 * var(--size-4-3));
-	color: var(--text-muted);
-}
-
-details[open] > summary.rdb-row::before {
-	content: '▾';
-}
-
-/* Align leaf rows, which have no marker, with the rows that do. */
-div.rdb-row {
-	padding-inline-start: calc(var(--size-4-2) + 1em);
-}
-
-.rdb-row:hover {
-	background-color: var(--background-modifier-hover);
-}
-
-.rdb-label {
-	flex: 1 1 16em;
-}
-
-.rdb-group > details > .rdb-row .rdb-label {
-	font-weight: var(--font-semibold);
-}
-
-.rdb-badge {
-	font-size: var(--rdb-small);
-	padding: 0 var(--size-4-2);
-	border-radius: var(--radius-s);
-	border: var(--border-width) solid currentColor;
+.rdb-visually-hidden {
+	position: absolute !important;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
 	white-space: nowrap;
 }
 
-.rdb-missing {
-	color: var(--text-muted);
-	border-style: dashed;
+/* Header and tabs */
+
+.rdb-title {
+	font-size: var(--h2-size);
+	font-weight: var(--font-bold);
+	line-height: 1.2;
+	margin-bottom: var(--rdb-space);
 }
-
-.rdb-flag {
-	color: var(--text-warning);
-}
-
-.rdb-counts {
-	color: var(--text-muted);
-	font-size: var(--rdb-small);
-	font-variant-numeric: tabular-nums;
-	white-space: nowrap;
-}
-
-.rdb-entry {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: baseline;
-	gap: var(--size-4-1) var(--size-4-2);
-	padding: var(--size-2-1) 0;
-}
-
-.rdb-date {
-	color: var(--text-muted);
-	font-variant-numeric: tabular-nums;
-	white-space: nowrap;
-}
-
-.rdb-entry.is-draft .rdb-status {
-	font-weight: var(--font-semibold);
-}
-
-.rdb-entry.is-rejected .rdb-link {
-	text-decoration: line-through;
-	color: var(--text-faint);
-}
-
-.rdb-entry:not(.is-draft):not(.is-confirmed):not(.is-rejected) .rdb-status {
-	color: var(--text-error);
-}
-
-/* Inbox */
-
-.rdb-table-wrap {
-	overflow-x: auto;
-}
-
-.rdb .rdb-table {
-	width: 100%;
-	border-collapse: collapse;
-}
-
-.rdb .rdb-table th,
-.rdb .rdb-table td {
-	text-align: start;
-	vertical-align: top;
-	padding: var(--size-4-2) var(--size-4-3);
-	border-bottom: var(--border-width) solid var(--background-modifier-border);
-}
-
-.rdb .rdb-table th {
-	color: var(--text-muted);
-	font-weight: var(--font-semibold);
-}
-
-.rdb-body > :first-child {
-	margin-top: var(--size-4-1);
-}
-
-.rdb-body > :last-child {
-	margin-bottom: 0;
-}
-
-.rdb-field,
-.rdb-trail {
-	color: var(--text-muted);
-	font-size: var(--rdb-small);
-}
-
-.rdb .rdb-items li + li {
-	margin-top: var(--size-4-2);
-}
-
-.rdb-items .rdb-badge {
-	margin-inline-start: var(--size-4-2);
-}
-
-.rdb .rdb-table th:last-child {
-	width: 35%;
-	min-width: 12em;
-}
-
-/* Tabs: the selected tab is marked by aria-selected, weight and an underline. */
 
 .rdb-tabs {
 	display: flex;
-	gap: var(--size-4-1);
-	border-bottom: var(--border-width) solid var(--background-modifier-border);
-	margin-block: var(--size-4-2) var(--size-4-3);
+	gap: var(--size-4-2);
+	border-bottom: var(--border-width) solid var(--rdb-border);
+	margin-bottom: var(--rdb-space-l);
 }
 
 .rdb .rdb-tab {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	height: auto;
+	padding: var(--size-4-2) var(--size-4-1);
+	margin-bottom: calc(-1 * var(--border-width));
+	margin-inline-end: var(--size-4-3);
 	background: none;
 	box-shadow: none;
 	border: none;
 	border-bottom: 2px solid transparent;
 	border-radius: 0;
-	margin-bottom: calc(-1 * var(--border-width));
-	padding: var(--size-4-2) var(--size-4-3);
-	height: auto;
 	font-size: inherit;
 	color: var(--text-muted);
 	cursor: pointer;
@@ -263,4 +81,421 @@ div.rdb-row {
 	color: var(--text-normal);
 	font-weight: var(--font-semibold);
 	border-bottom-color: var(--interactive-accent);
+}
+
+.rdb-tab-count {
+	min-width: 1.6em;
+	padding: 0 var(--size-4-2);
+	border-radius: 999px;
+	background: var(--background-modifier-hover);
+	font-size: var(--rdb-xsmall);
+	font-weight: var(--font-semibold);
+	text-align: center;
+}
+
+/* Stats */
+
+.rdb-stats {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(7em, 1fr));
+	gap: var(--rdb-space);
+	margin-bottom: var(--rdb-space-l);
+}
+
+.rdb-stat {
+	padding: var(--rdb-space) var(--size-4-4);
+	border-radius: var(--rdb-radius);
+	background: var(--rdb-surface);
+}
+
+.rdb-stat dt {
+	font-size: var(--rdb-small);
+	color: var(--text-muted);
+}
+
+.rdb-stat-value {
+	font-size: 1.75em;
+	font-weight: var(--font-bold);
+	font-variant-numeric: tabular-nums;
+}
+
+.rdb-stat-note {
+	font-size: var(--rdb-small);
+	color: var(--text-muted);
+}
+
+/* Toolbar: segmented filter */
+
+.rdb-toolbar {
+	margin-bottom: var(--rdb-space);
+}
+
+.rdb-segmented {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 2px;
+	margin: 0;
+	padding: 3px;
+	border: none;
+	border-radius: 999px;
+	background: var(--rdb-surface);
+}
+
+.rdb-segmented label {
+	cursor: pointer;
+}
+
+.rdb-segmented span {
+	display: block;
+	padding: var(--size-4-1) var(--size-4-4);
+	border-radius: 999px;
+	color: var(--text-muted);
+}
+
+.rdb-segmented label:hover span {
+	color: var(--text-normal);
+}
+
+.rdb-segmented input:checked + span {
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+	box-shadow: var(--shadow-s);
+}
+
+.rdb-segmented input:focus-visible + span {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/* Cards and sections */
+
+.rdb-content {
+	display: grid;
+	gap: var(--rdb-space);
+}
+
+.rdb .rdb-card {
+	padding: var(--size-4-2);
+	border: var(--border-width) solid var(--rdb-border);
+	border-radius: var(--rdb-radius);
+	background: var(--background-primary);
+}
+
+.rdb .rdb-empty-state {
+	padding: var(--rdb-space-l);
+	text-align: center;
+	color: var(--text-muted);
+}
+
+.rdb-section-title {
+	padding: var(--size-4-2) var(--rdb-space);
+	font-weight: var(--font-semibold);
+	cursor: pointer;
+}
+
+.rdb-note,
+.rdb-summary {
+	color: var(--text-muted);
+	font-size: var(--rdb-small);
+}
+
+.rdb-note {
+	margin: 0 var(--rdb-space) var(--size-4-2);
+}
+
+.rdb-summary {
+	margin: 0 0 var(--rdb-space);
+}
+
+.rdb-error {
+	color: var(--text-error);
+}
+
+/* Warnings */
+
+.rdb-warnings {
+	margin-bottom: var(--rdb-space);
+	border-radius: var(--rdb-radius);
+	background: rgba(var(--color-orange-rgb), 0.08);
+	border-inline-start: 3px solid var(--color-orange);
+}
+
+.rdb .rdb-warning-list {
+	display: grid;
+	gap: var(--size-4-2);
+	padding: 0 var(--rdb-space) var(--rdb-space);
+}
+
+.rdb-warning-kind {
+	display: block;
+	font-size: var(--rdb-xsmall);
+	font-weight: var(--font-semibold);
+	color: var(--text-muted);
+}
+
+/* Tree */
+
+.rdb .rdb-tree .rdb-tree {
+	margin-inline-start: calc(var(--rdb-space) + 0.5em);
+	padding-inline-start: var(--size-4-2);
+	border-inline-start: var(--border-width) solid var(--rdb-border);
+}
+
+.rdb-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-1) var(--rdb-space);
+	min-height: 2.4em;
+	padding: var(--size-4-1) var(--rdb-space);
+	border-radius: var(--radius-m);
+}
+
+.rdb-row:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+summary:is(.rdb-row, .rdb-section-title) {
+	cursor: pointer;
+	list-style: none;
+}
+
+summary:is(.rdb-row, .rdb-section-title)::-webkit-details-marker {
+	display: none;
+}
+
+/* One disclosure marker for rows and sections; display: flex drops the native one. */
+.rdb-section-title::before {
+	content: '›';
+	display: inline-block;
+	width: 1em;
+	margin-inline-end: var(--size-4-1);
+	color: var(--text-faint);
+	font-size: 1.2em;
+	line-height: 1;
+	text-align: center;
+	transition: transform 120ms ease;
+}
+
+details[open] > .rdb-section-title::before {
+	transform: rotate(90deg);
+}
+
+.rdb-marker {
+	flex: none;
+	width: 1em;
+	color: var(--text-faint);
+	font-size: 1.2em;
+	line-height: 1;
+	text-align: center;
+	transition: transform 120ms ease;
+}
+
+summary.rdb-row .rdb-marker::before {
+	content: '›';
+}
+
+details[open] > summary.rdb-row .rdb-marker {
+	transform: rotate(90deg);
+}
+
+.rdb-row-main {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	flex: 1 1 12em;
+	min-width: 0;
+}
+
+.rdb-row-text {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+/* Right-aligned, also when it wraps under the label on narrow screens. */
+.rdb-row-meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-2);
+	margin-inline-start: auto;
+}
+
+.rdb-depth-1 > details > .rdb-row .rdb-label,
+.rdb-depth-1 > .rdb-row .rdb-label {
+	font-size: 1.1em;
+	font-weight: var(--font-bold);
+}
+
+.rdb-depth-2 > details > .rdb-row .rdb-label {
+	font-weight: var(--font-semibold);
+}
+
+.rdb-counts {
+	color: var(--text-muted);
+	font-size: var(--rdb-small);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.rdb-trail {
+	color: var(--text-muted);
+	font-size: var(--rdb-xsmall);
+}
+
+/* Entries under an item */
+
+.rdb .rdb-entries {
+	display: grid;
+	gap: 2px;
+	margin: 0 0 var(--size-4-2) calc(var(--rdb-space) + 1.2em + var(--size-4-2));
+}
+
+.rdb-entry {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-1) var(--rdb-space);
+	padding: var(--size-4-1) 0;
+}
+
+.rdb-date {
+	color: var(--text-muted);
+	font-size: var(--rdb-small);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.rdb-entry.is-rejected .rdb-link {
+	text-decoration: line-through;
+	color: var(--text-faint);
+}
+
+/* Pills: text label first, colour second */
+
+.rdb-pill {
+	display: inline-block;
+	padding: 0.1em 0.7em;
+	border: var(--border-width) solid transparent;
+	border-radius: 999px;
+	font-size: var(--rdb-xsmall);
+	font-weight: var(--font-semibold);
+	line-height: 1.5;
+	white-space: nowrap;
+}
+
+.rdb-pill.is-missing {
+	border: var(--border-width) dashed var(--text-faint);
+	color: var(--text-muted);
+}
+
+.rdb-pill.is-warning {
+	background: rgba(var(--color-orange-rgb), 0.15);
+	color: var(--color-orange);
+}
+
+.rdb-pill.is-error {
+	background: rgba(var(--color-red-rgb), 0.15);
+	color: var(--color-red);
+}
+
+.rdb-pill.is-draft {
+	background: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.15);
+	color: var(--text-accent);
+}
+
+.rdb-pill.is-confirmed {
+	background: rgba(var(--color-green-rgb), 0.15);
+	color: var(--color-green);
+}
+
+.rdb-pill.is-rejected,
+.rdb-pill.is-retired {
+	background: var(--background-modifier-hover);
+	color: var(--text-muted);
+}
+
+/* Retired section */
+
+.rdb .rdb-retired {
+	background: var(--rdb-surface);
+}
+
+.rdb-retired .rdb-label {
+	color: var(--text-muted);
+}
+
+/* Inbox */
+
+.rdb .rdb-inbox {
+	display: grid;
+	gap: var(--rdb-space);
+}
+
+.rdb .rdb-entry-card {
+	display: grid;
+	gap: var(--size-4-2);
+	padding: var(--size-4-4) var(--rdb-space-l);
+}
+
+.rdb-entry-header {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: var(--size-4-1) var(--rdb-space);
+}
+
+.rdb-entry-title {
+	font-size: 1.1em;
+	font-weight: var(--font-semibold);
+}
+
+.rdb-body > :first-child {
+	margin-top: 0;
+}
+
+.rdb-body > :last-child {
+	margin-bottom: 0;
+}
+
+.rdb-fields {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 0 var(--rdb-space);
+	font-size: var(--rdb-small);
+}
+
+.rdb-fields dt {
+	color: var(--text-muted);
+}
+
+.rdb-label-small {
+	margin-top: var(--size-4-2);
+	font-size: var(--rdb-xsmall);
+	font-weight: var(--font-semibold);
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.rdb .rdb-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-2);
+}
+
+.rdb-chip {
+	padding: var(--size-4-2) var(--rdb-space);
+	border-radius: var(--radius-m);
+	background: var(--rdb-surface);
+}
+
+.rdb-chip-line {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-1) var(--size-4-2);
 }

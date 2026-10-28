@@ -9,7 +9,7 @@ export type View = (typeof VIEWS)[number];
 export interface ViewState {
 	view: View;
 	filter: Filter;
-	/** Open state per node key, set when the user toggles a row. */
+	/** Open state per node key (and section), set when the user toggles it. */
 	open: Map<string, boolean>;
 }
 
@@ -37,6 +37,9 @@ const BASE_FIELDS = ['id', 'status', 'items'];
 
 // Rows deeper than this start collapsed.
 const OPEN_DEPTH = 2;
+
+const WARNINGS_KEY = '\0warnings';
+const RETIRED_KEY = '\0retired';
 
 let instance = 0;
 
@@ -66,6 +69,10 @@ function link(parent: HTMLElement, text: string, path: string, line: number, han
 	return a;
 }
 
+function pill(parent: HTMLElement, text: string, modifier: string): void {
+	el('span', `rdb-pill is-${modifier}`, text, parent);
+}
+
 function plural(count: number, one: string, many: string): string {
 	return `${count} ${count === 1 ? one : many}`;
 }
@@ -78,6 +85,16 @@ function counts(node: Node): string {
 	if (node.drafts) parts.push(plural(node.drafts, 'draft', 'drafts'));
 
 	return parts.join(' · ');
+}
+
+/** A collapsible section that remembers its open state. */
+function section(parent: HTMLElement, cls: string, key: string, title: string, state: ViewState, openByDefault: boolean): HTMLDetailsElement {
+	const details = el('details', cls, undefined, parent);
+	details.open = state.open.get(key) ?? openByDefault;
+	details.addEventListener('toggle', () => state.open.set(key, details.open));
+	el('summary', 'rdb-section-title', title, details);
+
+	return details;
 }
 
 export function renderError(container: HTMLElement, message: string): void {
@@ -109,10 +126,16 @@ export function renderDb(container: HTMLElement, db: Db, state: ViewState, handl
 	};
 
 	VIEWS.forEach((view, i) => {
-		const tab = el('button', 'rdb-tab', view === 'inbox' ? `Inbox (${drafts})` : 'Overview', tablist);
+		const tab = el('button', 'rdb-tab', view === 'inbox' ? 'Inbox' : 'Overview', tablist);
 		tab.setAttribute('role', 'tab');
 		tab.id = `${id}-tab-${view}`;
 		tab.setAttribute('aria-controls', `${id}-panel-${view}`);
+
+		if (view === 'inbox') {
+			el('span', 'rdb-tab-count', String(drafts), tab);
+			tab.setAttribute('aria-label', `Inbox, ${plural(drafts, 'draft', 'drafts')}`);
+		}
+
 		tab.addEventListener('click', () => select(view));
 		tab.addEventListener('keydown', (event) => {
 			const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
@@ -137,51 +160,75 @@ export function renderDb(container: HTMLElement, db: Db, state: ViewState, handl
 	select(state.view);
 }
 
-function renderOverview(panel: HTMLElement, db: Db, state: ViewState, handlers: ViewHandlers): void {
-	const missing = db.leaves.total - db.leaves.covered;
-	el('p', 'rdb-summary', `${missing} of ${db.leaves.total} lowest-level items missing. ${counts(db.root) || 'No entries yet'}.`, panel);
+function renderStats(parent: HTMLElement, stats: [label: string, value: number, note: string][]): void {
+	const list = el('dl', 'rdb-stats', undefined, parent);
 
-	const tree = el('div');
-	const renderTree = () => {
-		tree.replaceChildren();
+	for (const [label, value, note] of stats) {
+		const tile = el('div', 'rdb-stat', undefined, list);
+		el('dt', undefined, label, tile);
+		const dd = el('dd', undefined, undefined, tile);
+		el('span', 'rdb-stat-value', String(value), dd);
+		el('span', 'rdb-stat-note', ` ${note}`, dd);
+	}
+}
+
+function renderOverview(panel: HTMLElement, db: Db, state: ViewState, handlers: ViewHandlers): void {
+	renderStats(panel, [
+		['Missing', db.leaves.total - db.leaves.covered, `of ${db.leaves.total} lowest-level items`],
+		['Entries', db.root.confirmed, 'confirmed'],
+		['Drafts', db.root.drafts, 'to review'],
+	]);
+
+	const content = el('div', 'rdb-content');
+	const renderContent = () => {
+		content.replaceChildren();
 		const visible = db.root.children.filter((child) => matches(child, state.filter));
 
 		if (!visible.length) {
-			el('p', 'rdb-empty', db.root.children.length ? 'Nothing matches this filter.' : 'No items found.', tree);
-			return;
+			el('p', 'rdb-card rdb-empty-state', db.root.children.length ? 'Nothing matches this filter.' : 'No items found.', content);
 		}
 
-		const list = el('ul', 'rdb-tree', undefined, tree);
-		visible.forEach((child) => renderNode(list, child, 1, state, handlers));
+		for (const group of visible) {
+			renderNode(el('ul', 'rdb-card rdb-tree', undefined, content), group, 1, state, handlers);
+		}
+
+		const retired = state.filter === 'missing' ? [] : db.retired.filter((node) => matches(node, state.filter));
+
+		if (retired.length) {
+			const details = section(content, 'rdb-card rdb-retired', RETIRED_KEY, `Retired (${retired.length})`, state, false);
+			el('p', 'rdb-note', 'No longer part of the database. Kept with their entries, not counted.', details);
+			const list = el('ul', 'rdb-tree', undefined, details);
+			retired.forEach((node) => renderNode(list, node, OPEN_DEPTH, state, handlers, true));
+		}
 	};
 
-	renderFilter(panel, state, renderTree);
+	const toolbar = el('div', 'rdb-toolbar', undefined, panel);
+	renderFilter(toolbar, state, renderContent);
 
 	if (db.warnings.length) {
-		const details = el('details', 'rdb-warnings', undefined, panel);
-		details.open = true;
-		el('summary', undefined, `Warnings (${db.warnings.length})`, details);
-		const list = el('ul', undefined, undefined, details);
+		const details = section(panel, 'rdb-warnings', WARNINGS_KEY, plural(db.warnings.length, 'warning', 'warnings'), state, false);
+		const list = el('ul', 'rdb-warning-list', undefined, details);
 
 		for (const warning of db.warnings) {
 			const li = el('li', undefined, undefined, list);
-			el('strong', undefined, `${warning.kind}: `, li);
+			el('span', 'rdb-warning-kind', warning.kind, li);
 			link(li, warning.message, warning.path, warning.line, handlers);
 		}
 	}
 
-	panel.appendChild(tree);
-	renderTree();
+	panel.appendChild(content);
+	renderContent();
 }
 
+/** A segmented control built from radio inputs, so it keeps native keyboard behaviour. */
 function renderFilter(parent: HTMLElement, state: ViewState, rerender: () => void): void {
-	const fieldset = el('fieldset', 'rdb-filter', undefined, parent);
-	el('legend', undefined, 'Show', fieldset);
+	const fieldset = el('fieldset', 'rdb-segmented', undefined, parent);
+	el('legend', 'rdb-visually-hidden', 'Show', fieldset);
 	const name = `rdb-filter-${instance++}`;
 
 	for (const filter of FILTERS) {
 		const label = el('label', undefined, undefined, fieldset);
-		const input = el('input', undefined, undefined, label);
+		const input = el('input', 'rdb-visually-hidden', undefined, label);
 		input.type = 'radio';
 		input.name = name;
 		input.value = filter;
@@ -190,28 +237,33 @@ function renderFilter(parent: HTMLElement, state: ViewState, rerender: () => voi
 			state.filter = filter;
 			rerender();
 		});
-		label.append(` ${FILTER_LABELS[filter]}`);
+		el('span', undefined, FILTER_LABELS[filter], label);
 	}
 }
 
-function renderNode(parent: HTMLElement, node: Node, depth: number, state: ViewState, handlers: ViewHandlers): void {
-	const li = el('li', `rdb-node rdb-${node.kind}`, undefined, parent);
+function renderNode(parent: HTMLElement, node: Node, depth: number, state: ViewState, handlers: ViewHandlers, showTrail = false): void {
+	const li = el('li', `rdb-node rdb-${node.kind} rdb-depth-${Math.min(depth, 3)}`, undefined, parent);
 	const children = node.children.filter((child) => matches(child, state.filter));
 	const entries = state.filter === 'drafts' ? node.entries.filter((entry) => entry.status === 'draft') : node.entries;
 	const hasBody = children.length > 0 || entries.length > 0;
 
 	const row = el(hasBody ? 'summary' : 'div', 'rdb-row');
-	el('span', 'rdb-label', node.label, row);
+	const main = el('span', 'rdb-row-main', undefined, row);
+	// Empty on leaf rows, to keep labels aligned.
+	el('span', 'rdb-marker', undefined, main).setAttribute('aria-hidden', 'true');
+	const text = el('span', 'rdb-row-text', undefined, main);
+	el('span', 'rdb-label', node.label, text);
 
-	if (!node.covered) {
-		el('span', 'rdb-badge rdb-missing', 'Missing', row);
+	if (showTrail && node.trail.length) {
+		el('span', 'rdb-trail', node.trail.join(' › '), text);
 	}
 
-	if (node.textChanged) {
-		el('span', 'rdb-badge rdb-flag', 'Text changed', row);
-	}
+	const meta = el('span', 'rdb-row-meta', undefined, row);
 
-	el('span', 'rdb-counts', counts(node), row);
+	if (!node.covered && !node.retired) pill(meta, 'Missing', 'missing');
+	if (node.textChanged) pill(meta, 'Text changed', 'warning');
+
+	el('span', 'rdb-counts', counts(node), meta);
 
 	if (!hasBody) {
 		li.appendChild(row);
@@ -234,45 +286,38 @@ function renderNode(parent: HTMLElement, node: Node, depth: number, state: ViewS
 	}
 }
 
-function statusLabel(entry: Entry): string {
-	return STATUS_LABELS[entry.status] ?? `Unknown status${entry.status ? `: ${entry.status}` : ''}`;
+function statusPill(parent: HTMLElement, entry: Entry): void {
+	const known = STATUS_LABELS[entry.status];
+	pill(parent, known ?? `Unknown status${entry.status ? `: ${entry.status}` : ''}`, known ? entry.status : 'error');
 }
 
 function renderEntry(parent: HTMLElement, entry: Entry, handlers: ViewHandlers): void {
 	const li = el('li', `rdb-entry is-${entry.status || 'unknown'}`, undefined, parent);
-
-	if (entry.date) {
-		el('span', 'rdb-date', entry.date, li);
-	}
-
+	el('span', 'rdb-date', entry.date, li);
 	link(li, entry.title || 'Untitled entry', entry.path, entry.line, handlers);
-	el('span', 'rdb-badge rdb-status', statusLabel(entry), li);
+	statusPill(li, entry);
 }
 
-/** All draft entries, oldest first, as a table. */
-function renderInbox(root: HTMLElement, db: Db, handlers: ViewHandlers): void {
+/** All draft entries, oldest first, one card each. */
+function renderInbox(panel: HTMLElement, db: Db, handlers: ViewHandlers): void {
 	const drafts = db.entries.filter((entry) => entry.status === 'draft').sort((a, b) => a.date.localeCompare(b.date));
 
-	el('p', 'rdb-summary', drafts.length ? `${plural(drafts.length, 'draft', 'drafts')} to review.` : 'No drafts to review.', root);
-
 	if (!drafts.length) {
+		el('p', 'rdb-card rdb-empty-state', 'No drafts to review.', panel);
 		return;
 	}
 
-	const table = el('table', 'rdb-table', undefined, el('div', 'rdb-table-wrap', undefined, root));
-	const head = el('tr', undefined, undefined, el('thead', undefined, undefined, table));
-	['Date', 'Entry', 'Items'].forEach((title) => (el('th', undefined, title, head).scope = 'col'));
-	const body = el('tbody', undefined, undefined, table);
+	el('p', 'rdb-summary', `${plural(drafts.length, 'draft', 'drafts')} to review, oldest first.`, panel);
+	const list = el('ol', 'rdb-inbox', undefined, panel);
 
 	for (const entry of drafts) {
-		const row = el('tr', undefined, undefined, body);
-		el('td', 'rdb-date', entry.date, row);
-
-		const cell = el('td', undefined, undefined, row);
-		link(el('strong', undefined, undefined, cell), entry.title || 'Untitled entry', entry.path, entry.line, handlers);
+		const card = el('li', 'rdb-card rdb-entry-card', undefined, list);
+		const header = el('div', 'rdb-entry-header', undefined, card);
+		link(el('div', 'rdb-entry-title', undefined, header), entry.title || 'Untitled entry', entry.path, entry.line, handlers);
+		el('span', 'rdb-date', entry.date, header);
 
 		if (entry.body) {
-			const text = el('div', 'rdb-body', undefined, cell);
+			const text = el('div', 'rdb-body', undefined, card);
 
 			if (handlers.renderMarkdown) {
 				handlers.renderMarkdown(text, entry.body);
@@ -281,31 +326,37 @@ function renderInbox(root: HTMLElement, db: Db, handlers: ViewHandlers): void {
 			}
 		}
 
-		for (const [key, value] of Object.entries(entry.fields)) {
-			if (!BASE_FIELDS.includes(key)) {
-				el('div', 'rdb-field', `${key}: ${value}`, cell);
+		const fields = Object.entries(entry.fields).filter(([key]) => !BASE_FIELDS.includes(key));
+
+		if (fields.length) {
+			const dl = el('dl', 'rdb-fields', undefined, card);
+
+			for (const [key, value] of fields) {
+				el('dt', undefined, key, dl);
+				el('dd', undefined, value, dl);
 			}
 		}
 
-		const items = el('ul', 'rdb-items', undefined, el('td', undefined, undefined, row));
+		el('div', 'rdb-label-small', 'Linked to', card);
+		const chips = el('ul', 'rdb-chips', undefined, card);
 
 		for (const target of entry.links) {
-			const li = el('li', undefined, undefined, items);
+			const chip = el('li', 'rdb-chip', undefined, chips);
 			const node = target.id === null ? undefined : db.itemsById.get(target.id);
+			const line = el('div', 'rdb-chip-line', undefined, chip);
 
 			if (!node) {
-				el('span', undefined, `"${target.text}" `, li);
-				el('span', 'rdb-badge rdb-flag', target.id === null ? 'Not an item' : 'No longer exists', li);
+				el('span', undefined, target.text, line);
+				pill(line, target.id === null ? 'Not an item' : 'No longer exists', 'error');
 				continue;
 			}
 
-			link(li, node.label, node.path, node.line, handlers);
+			link(line, node.label, node.path, node.line, handlers);
 
-			if (node.textChanged) {
-				el('span', 'rdb-badge rdb-flag', 'Text changed', li);
-			}
+			if (node.retired) pill(line, 'Retired', 'retired');
+			if (node.textChanged) pill(line, 'Text changed', 'warning');
 
-			el('div', 'rdb-trail', node.trail.join(' › '), li);
+			el('div', 'rdb-trail', node.trail.join(' › '), chip);
 		}
 	}
 }

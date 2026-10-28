@@ -87,6 +87,17 @@ test('fixture: coverage, counts and order', async () => {
 	assert.match(db.entries.find((entry) => entry.date === '2026-10-03').body, /^Asked a stranger/);
 });
 
+test('fixture: retired items leave the tree and coverage', async () => {
+	const db = await loadFixture();
+
+	assert.deepEqual(db.retired.map((node) => [node.label, node.confirmed, node.trail.join(' › ')]), [
+		['Uses the subjunctive', 1, 'Languages › Spanish'],
+	]);
+	assert.equal(find(db.root, 'Uses the subjunctive'), undefined);
+	assert.deepEqual(db.leaves, { covered: 5, total: 7 });
+	assert.equal(find(db.root, 'Spanish').confirmed, 2);
+});
+
 test('fixture: coverage rule any', async () => {
 	const files = [
 		{ path: 'I/F.md', text: '- S ^s\n\t- A ^a\n\t- B ^b\n' },
