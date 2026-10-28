@@ -157,7 +157,7 @@ filter: missing
 | `view` | no | Tab to show first: `overview` (default) or `inbox`. |
 | `filter` | no | Overview only. Initial filter: `all` (default), `missing` or `drafts`. The overview also has a control to change it. |
 
-The block shows two tabs, **Overview** and **Inbox (N)**, with N the number of drafts. Both are read-only in v1. Text sizes follow the note's font size.
+The block shows two tabs, **Overview** and **Inbox (N)**, with N the number of drafts. Both are read-only in v1. Text sizes follow the note's font size; secondary text never goes below 14px.
 
 ### Overview
 

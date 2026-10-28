@@ -4,13 +4,14 @@
    Sizes are relative, so the note's font size (Settings → Appearance) applies. */
 
 .rdb {
-	--rdb-space: var(--size-4-3);
-	--rdb-space-l: var(--size-4-5);
+	--rdb-space: var(--size-4-4);
+	--rdb-space-l: var(--size-4-6);
 	--rdb-radius: var(--radius-l);
 	--rdb-border: var(--background-modifier-border);
 	--rdb-surface: var(--background-secondary);
-	--rdb-small: 0.875em;
-	--rdb-xsmall: 0.8em;
+	/* Never below 14px, also when the note font is smaller. */
+	--rdb-small: max(0.9375em, 15px);
+	--rdb-xsmall: max(0.875em, 14px);
 	line-height: 1.5;
 }
 
@@ -60,7 +61,7 @@
 	align-items: center;
 	gap: var(--size-4-2);
 	height: auto;
-	padding: var(--size-4-2) var(--size-4-1);
+	padding: var(--size-4-3) var(--size-4-1);
 	margin-bottom: calc(-1 * var(--border-width));
 	margin-inline-end: var(--size-4-3);
 	background: none;
@@ -88,6 +89,7 @@
 	padding: 0 var(--size-4-2);
 	border-radius: 999px;
 	background: var(--background-modifier-hover);
+	line-height: 1.6;
 	font-size: var(--rdb-xsmall);
 	font-weight: var(--font-semibold);
 	text-align: center;
@@ -95,7 +97,7 @@
 
 /* Stats */
 
-.rdb-stats {
+.rdb .rdb-stats {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(7em, 1fr));
 	gap: var(--rdb-space);
@@ -103,7 +105,7 @@
 }
 
 .rdb-stat {
-	padding: var(--rdb-space) var(--size-4-4);
+	padding: var(--rdb-space) var(--size-4-5);
 	border-radius: var(--rdb-radius);
 	background: var(--rdb-surface);
 }
@@ -135,7 +137,7 @@
 	flex-wrap: wrap;
 	gap: 2px;
 	margin: 0;
-	padding: 3px;
+	padding: var(--size-4-1);
 	border: none;
 	border-radius: 999px;
 	background: var(--rdb-surface);
@@ -147,7 +149,7 @@
 
 .rdb-segmented span {
 	display: block;
-	padding: var(--size-4-1) var(--size-4-4);
+	padding: var(--size-4-2) var(--size-4-5);
 	border-radius: 999px;
 	color: var(--text-muted);
 }
@@ -176,7 +178,7 @@
 }
 
 .rdb .rdb-card {
-	padding: var(--size-4-2);
+	padding: var(--size-4-3);
 	border: var(--border-width) solid var(--rdb-border);
 	border-radius: var(--rdb-radius);
 	background: var(--background-primary);
@@ -189,7 +191,7 @@
 }
 
 .rdb-section-title {
-	padding: var(--size-4-2) var(--rdb-space);
+	padding: var(--size-4-3) var(--rdb-space);
 	font-weight: var(--font-semibold);
 	cursor: pointer;
 }
@@ -201,7 +203,7 @@
 }
 
 .rdb-note {
-	margin: 0 var(--rdb-space) var(--size-4-2);
+	margin: 0 var(--rdb-space) var(--size-4-3);
 }
 
 .rdb-summary {
@@ -223,7 +225,7 @@
 
 .rdb .rdb-warning-list {
 	display: grid;
-	gap: var(--size-4-2);
+	gap: var(--size-4-3);
 	padding: 0 var(--rdb-space) var(--rdb-space);
 }
 
@@ -237,7 +239,8 @@
 /* Tree */
 
 .rdb .rdb-tree .rdb-tree {
-	margin-inline-start: calc(var(--rdb-space) + 0.5em);
+	/* Guide line under the parent's marker. */
+	margin-inline-start: calc(var(--size-4-3) + 0.6em);
 	padding-inline-start: var(--size-4-2);
 	border-inline-start: var(--border-width) solid var(--rdb-border);
 }
@@ -247,8 +250,8 @@
 	flex-wrap: wrap;
 	align-items: center;
 	gap: var(--size-4-1) var(--rdb-space);
-	min-height: 2.4em;
-	padding: var(--size-4-1) var(--rdb-space);
+	min-height: 2.75em;
+	padding: var(--size-4-2) var(--size-4-3);
 	border-radius: var(--radius-m);
 }
 
@@ -349,8 +352,8 @@ details[open] > summary.rdb-row .rdb-marker {
 
 .rdb .rdb-entries {
 	display: grid;
-	gap: 2px;
-	margin: 0 0 var(--size-4-2) calc(var(--rdb-space) + 1.2em + var(--size-4-2));
+	gap: var(--size-4-1);
+	margin: 0 0 var(--size-4-3) calc(var(--size-4-3) + 1.2em + var(--size-4-2));
 }
 
 .rdb-entry {
@@ -377,7 +380,7 @@ details[open] > summary.rdb-row .rdb-marker {
 
 .rdb-pill {
 	display: inline-block;
-	padding: 0.1em 0.7em;
+	padding: 0.15em 0.8em;
 	border: var(--border-width) solid transparent;
 	border-radius: 999px;
 	font-size: var(--rdb-xsmall);
@@ -436,8 +439,8 @@ details[open] > summary.rdb-row .rdb-marker {
 
 .rdb .rdb-entry-card {
 	display: grid;
-	gap: var(--size-4-2);
-	padding: var(--size-4-4) var(--rdb-space-l);
+	gap: var(--size-4-3);
+	padding: var(--size-4-5) var(--rdb-space-l);
 }
 
 .rdb-entry-header {
@@ -488,7 +491,7 @@ details[open] > summary.rdb-row .rdb-marker {
 }
 
 .rdb-chip {
-	padding: var(--size-4-2) var(--rdb-space);
+	padding: var(--size-4-3) var(--rdb-space);
 	border-radius: var(--radius-m);
 	background: var(--rdb-surface);
 }
