@@ -235,7 +235,7 @@ function renderOverview(panel: HTMLElement, db: Db, state: ViewState, handlers: 
 
 		if (retired.length) {
 			const details = section(content, 'rdb-card rdb-retired', RETIRED_KEY, `Retired (${retired.length})`, state, false);
-			el('p', 'rdb-note', 'No longer part of the database. Kept with their entries, not counted.', details);
+			el('p', 'rdb-note', 'No longer part of the database. Kept with their entries, not counted. Edit an entry to link it to a current item.', details);
 			const list = el('ul', 'rdb-tree', undefined, details);
 			retired.forEach((node) => renderNode(list, node, OPEN_DEPTH, ctx, true));
 		}
@@ -411,6 +411,12 @@ function renderInbox(panel: HTMLElement, db: Db, handlers: ViewHandlers): void {
 
 			if (node.retired) pill(line, 'Retired', 'retired');
 			if (node.textChanged) pill(line, 'Text changed', 'warning');
+
+			const review = handlers.review;
+
+			if (review && node.textChanged) {
+				button(line, 'Resolve', 'rdb-button-quiet', () => review.resolve(node)).setAttribute('aria-label', `Resolve text change of ${node.label}`);
+			}
 
 			el('div', 'rdb-trail', node.trail.join(' › '), chip);
 		}

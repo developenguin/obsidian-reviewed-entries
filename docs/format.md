@@ -165,7 +165,7 @@ The block shows two tabs, **Overview** and **Inbox (N)**, with N the number of d
 - Totals: missing lowest-level items, confirmed entries and drafts.
 - One card per top-level group, with a collapsible row per group and item: a `Missing` label when the row is not covered, and counts as `N entries · N drafts`. `entries` counts confirmed entries only; zero counts are left out.
 - Under each item, its linked entries: date, title (links to the entry), status as text.
-- A collapsed **Retired** section after the tree: retired items with their path and entries.
+- A collapsed **Retired** section after the tree: retired items with their path and entries. To move evidence to a current item, edit the entry's linked items.
 - Filters: `missing` shows only rows that are not covered; `drafts` shows only rows with draft entries in their subtree, and only their draft entries.
 - Warnings, in a collapsed section above the tree. Messages name entries by date and title and items by text, never by ID:
 
@@ -177,6 +177,7 @@ The block shows two tabs, **Overview** and **Inbox (N)**, with N the number of d
 | Invalid status | An entry has no `status`, or a value other than the three statuses. |
 | Missing ID | An entry has no `id`. |
 | No items | An entry has no item links. |
+| Retired link | An entry that isn't rejected links to a retired item. It counts towards nothing until it's edited to link to a current item, or rejected. |
 | Unresolved link | An `items` link has no `#^id` part. |
 
 ### Inbox
@@ -200,7 +201,7 @@ Writes go through Obsidian's `vault.process`, which re-reads the file first, and
 |---|---|---|
 | Confirm, Reject | Inbox card | Only the entry's `status::` line. |
 | Edit | Inbox card, entry row in the overview | The whole entry: heading, `id`, `status`, `items`, other fields, body. Opens a form with title, date, status, description and linked items (searchable picker; retired items can't be picked). The entry stays in its file, also when its date changes. |
-| Resolve | Overview row of an item with `Text changed` | Opens a check of the entries linked to the item: each shows the text it was linked with, its body, and Edit and Reject. **Mark as resolved** removes the item's `#text-changed` tag. Optionally, **Update link text** first sets the alias of each `items::` link to the item to its current text; links in the body stay as they are. |
+| Resolve | Overview row of an item with `Text changed`, and that item in an Inbox card | Opens a check of the entries linked to the item: each shows the text it was linked with, its body, and Edit and Reject. **Mark as resolved** removes the item's `#text-changed` tag. Optionally, **Update link text** first sets the alias of each `items::` link to the item to its current text; links in the body stay as they are. |
 | New entry | Button next to the tabs | Appends to `entries-folder/YYYY-MM.md` for the entry's date, creating the file (with a `# YYYY-MM` heading) if needed. Default status `confirmed`. |
 
 An edited or new entry is written in this layout: heading, then `id`, `status`, `items` and other fields one per line without list markers, a blank line, then the body. Body lines that would read as a heading (`# `, `## `) or a field (`key::`) are escaped with a backslash; lines inside code fences are kept as they are.

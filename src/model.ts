@@ -84,6 +84,7 @@ export type WarningKind =
 	| 'Invalid status'
 	| 'Missing ID'
 	| 'No items'
+	| 'Retired link'
 	| 'Unresolved link';
 
 export interface Warning {
@@ -656,6 +657,11 @@ function attachEntries(files: SourceFile[], itemsById: Map<string, Node>, warnin
 					warnings.push({ kind: 'Broken link', message: `${name} links to "${link.text}", which no longer exists`, ...where });
 				} else if (!node.entries.includes(entry)) {
 					node.entries.push(entry);
+
+					// A rejected entry doesn't need a current item; others count nowhere until relinked.
+					if (node.retired && entry.status !== 'rejected') {
+						warnings.push({ kind: 'Retired link', message: `${name} links to "${node.label}", which is retired`, ...where });
+					}
 				}
 			}
 		}

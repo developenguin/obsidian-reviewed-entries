@@ -135,6 +135,7 @@ test('fixture: warnings', async () => {
 		'Broken link',
 		'Duplicate ID',
 		'Invalid status',
+		'Retired link',
 		'Text changed',
 		'Unresolved link',
 	]);

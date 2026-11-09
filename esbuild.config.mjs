@@ -1,27 +1,36 @@
-// Builds main.js. With OBSIDIAN_VAULT set, also copies the plugin into
-// $OBSIDIAN_VAULT/.obsidian/plugins/<id>/. Pass --watch to rebuild on change.
+// Builds main.js. With OBSIDIAN_VAULT set (in the environment or .env), also
+// copies the plugin into <vault>/.obsidian/plugins/<id>/ for each vault.
+// Pass --watch to rebuild on change.
+import { existsSync } from 'node:fs';
 import { copyFile, mkdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 import esbuild from 'esbuild';
+
+// Variables already in the environment win over .env.
+if (existsSync('.env')) {
+	process.loadEnvFile('.env');
+}
 
 const watch = process.argv.includes('--watch');
 const { id } = JSON.parse(await readFile('manifest.json', 'utf8'));
-const vault = process.env.OBSIDIAN_VAULT;
+const vaults = (process.env.OBSIDIAN_VAULT ?? '').split(delimiter).filter(Boolean);
 
 const install = {
 	name: 'install',
 	setup(build) {
 		build.onEnd(async (result) => {
-			if (!vault || result.errors.length) return;
+			if (result.errors.length) return;
 
-			const target = join(vault, '.obsidian', 'plugins', id);
-			await mkdir(target, { recursive: true });
+			for (const vault of vaults) {
+				const target = join(vault, '.obsidian', 'plugins', id);
+				await mkdir(target, { recursive: true });
 
-			for (const file of ['main.js', 'manifest.json', 'styles.css']) {
-				await copyFile(file, join(target, file));
+				for (const file of ['main.js', 'manifest.json', 'styles.css']) {
+					await copyFile(file, join(target, file));
+				}
+
+				console.log(`Installed in ${target}`);
 			}
-
-			console.log(`Installed in ${target}`);
 		});
 	},
 };

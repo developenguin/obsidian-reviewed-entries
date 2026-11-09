@@ -30,13 +30,15 @@ Yarn 4 with Plug'n'Play; no `node_modules`.
 | `yarn dev` | Rebuild on change |
 | `yarn test` | Run model tests against `fixture/` |
 
-Set `OBSIDIAN_VAULT` to copy `main.js`, `manifest.json` and `styles.css` into `$OBSIDIAN_VAULT/.obsidian/plugins/reviewed-entries/` after each build:
+To copy `main.js`, `manifest.json` and `styles.css` into `<vault>/.obsidian/plugins/reviewed-entries/` after each build, set `OBSIDIAN_VAULT` in `.env` (not committed):
 
 ```bash
-OBSIDIAN_VAULT=~/path/to/vault yarn build
+cp .env.example .env
 ```
 
-`fixture/` is a small test vault: `OBSIDIAN_VAULT=$PWD/fixture yarn build`, then open the folder as a vault in Obsidian.
+It takes absolute paths, several separated by `:` (`;` on Windows). A variable set in the shell wins over `.env`.
+
+`fixture/` is a small test vault: add its absolute path to `OBSIDIAN_VAULT`, build, then open the folder as a vault in Obsidian.
 
 ### Layout
 
