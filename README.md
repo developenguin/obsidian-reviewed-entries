@@ -19,6 +19,10 @@ Obsidian plugin: a database of **items** (a hierarchy in Markdown files) and **e
 4. Items marked `Text changed` have a **Resolve** button: check the linked entries, then clear the tag.
 5. Command **Reviewed Entries: Open database** opens a database note.
 
+## Install
+
+Download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/developenguin/obsidian-reviewed-entries/releases/latest) into `<vault>/.obsidian/plugins/reviewed-entries/`, then enable **Reviewed Entries** in Obsidian under Settings → Community plugins.
+
 ## Develop
 
 Yarn 4 with Plug'n'Play; no `node_modules`.
@@ -39,6 +43,10 @@ cp .env.example .env
 It takes absolute paths, several separated by `:` (`;` on Windows). A variable set in the shell wins over `.env`.
 
 `fixture/` is a small test vault: add its absolute path to `OBSIDIAN_VAULT`, build, then open the folder as a vault in Obsidian.
+
+### Release
+
+Set the same version in `manifest.json` and `package.json`, commit, and push a tag with that version (e.g. `0.4.0`, no `v`). The Release workflow builds the plugin and attaches the three files to a GitHub release.
 
 ### Layout
 
