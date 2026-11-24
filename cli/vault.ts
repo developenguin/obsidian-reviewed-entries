@@ -1,16 +1,16 @@
 // Finds the user's tracker folder and reads it with the plugin's model, so the
 // scripts and the Obsidian overview agree on coverage.
 //
-// Location, in order: the MATRIX_RELOADED_VAULT and MATRIX_RELOADED_FOLDER
-// environment variables, then ~/.matrix-reloaded.json ({ "vault", "folder" }),
-// written by `tracker init`.
+// Location, in order: the OPERATOR_VAULT and OPERATOR_FOLDER environment
+// variables, then ~/.operator.json ({ "vault", "folder" }), written by
+// `tracker init`. Goal and log folders come from the overview note.
 
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { buildDb, parseConfig, type Db, type DbConfig, type SourceFile } from '../src/model.ts';
 
-export const SETTINGS_FILE = join(homedir(), '.matrix-reloaded.json');
+export const SETTINGS_FILE = join(homedir(), '.operator.json');
 
 export interface Location {
 	/** Absolute path of the Obsidian vault. */
@@ -25,10 +25,10 @@ export function fail(message: string): never {
 }
 
 export function location(): Location {
-	const fromEnv = process.env.MATRIX_RELOADED_VAULT;
+	const fromEnv = process.env.OPERATOR_VAULT;
 
 	if (fromEnv) {
-		return { vault: fromEnv, folder: process.env.MATRIX_RELOADED_FOLDER ?? 'Matrix Reloaded' };
+		return { vault: fromEnv, folder: process.env.OPERATOR_FOLDER ?? 'Evidence' };
 	}
 
 	if (!existsSync(SETTINGS_FILE)) {
@@ -44,15 +44,16 @@ export function location(): Location {
 	return { vault: settings.vault, folder: settings.folder };
 }
 
-/** Vault-relative paths of the tracker's notes. */
+/**
+ * Vault-relative paths of the tracker's notes. Goals and entries live in the
+ * folders the overview note names (`items-folder`, `entries-folder`).
+ */
 export function notes(folder: string) {
 	return {
 		database: `${folder}/Overview.md`,
 		config: `${folder}/Config.md`,
-		guidelines: `${folder}/Rating guidelines.md`,
-		statements: `${folder}/Statements`,
-		evidence: `${folder}/Evidence`,
 		source: `${folder}/Source`,
+		routine: `${folder}/Routine.md`,
 	};
 }
 
@@ -123,12 +124,16 @@ export function setProperty(text: string, key: string, value: string | string[])
 export class Vault {
 	readonly root: string;
 	readonly folder: string;
-	readonly notes: ReturnType<typeof notes>;
+	readonly notes: ReturnType<typeof notes> & { guidelines: string };
 
 	constructor(where: Location = location()) {
 		this.root = where.vault;
 		this.folder = where.folder;
-		this.notes = notes(where.folder);
+		const base = notes(where.folder);
+		const guidelines = existsSync(join(this.root, base.config)) ? frontmatter(readFileSync(join(this.root, base.config), 'utf8')).guidelines : '';
+
+		// Optional notes on how to judge evidence, shown by `explain`.
+		this.notes = { ...base, guidelines: `${where.folder}/${typeof guidelines === 'string' && guidelines ? guidelines : 'Guidelines.md'}` };
 	}
 
 	path(note: string): string {

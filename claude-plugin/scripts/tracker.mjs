@@ -360,15 +360,15 @@ function countLeaves(node) {
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-var SETTINGS_FILE = join(homedir(), ".matrix-reloaded.json");
+var SETTINGS_FILE = join(homedir(), ".operator.json");
 function fail(message) {
   console.error(message);
   process.exit(1);
 }
 function location() {
-  const fromEnv = process.env.MATRIX_RELOADED_VAULT;
+  const fromEnv = process.env.OPERATOR_VAULT;
   if (fromEnv) {
-    return { vault: fromEnv, folder: process.env.MATRIX_RELOADED_FOLDER ?? "Matrix Reloaded" };
+    return { vault: fromEnv, folder: process.env.OPERATOR_FOLDER ?? "Evidence" };
   }
   if (!existsSync(SETTINGS_FILE)) {
     fail(`No tracker set up: ${SETTINGS_FILE} is missing. Run \`tracker init --vault <path>\` first.`);
@@ -383,10 +383,8 @@ function notes(folder) {
   return {
     database: `${folder}/Overview.md`,
     config: `${folder}/Config.md`,
-    guidelines: `${folder}/Rating guidelines.md`,
-    statements: `${folder}/Statements`,
-    evidence: `${folder}/Evidence`,
-    source: `${folder}/Source`
+    source: `${folder}/Source`,
+    routine: `${folder}/Routine.md`
   };
 }
 function frontmatter(text) {
@@ -442,7 +440,9 @@ var Vault = class {
   constructor(where2 = location()) {
     this.root = where2.vault;
     this.folder = where2.folder;
-    this.notes = notes(where2.folder);
+    const base = notes(where2.folder);
+    const guidelines = existsSync(join(this.root, base.config)) ? frontmatter(readFileSync(join(this.root, base.config), "utf8")).guidelines : "";
+    this.notes = { ...base, guidelines: `${where2.folder}/${typeof guidelines === "string" && guidelines ? guidelines : "Guidelines.md"}` };
   }
   path(note) {
     return join(this.root, note);
@@ -628,7 +628,7 @@ ${render(input, id, known)}
     console.log(`Added ${input.status ?? "draft"} ${id}: ${input.date} ${input.title} \u2192 ${config2.entriesFolder}/${month}.md`);
   }
 }
-function statements(root) {
+function goals(root) {
   const result = [];
   walk(root, (node) => {
     if (node.kind !== "group") {
@@ -637,7 +637,7 @@ function statements(root) {
     for (const child of node.children.filter((child2) => child2.kind === "item")) {
       const parents = /* @__PURE__ */ new Map();
       walk(child, (descendant) => parents.set(descendant.key, child));
-      result.push({ statement: child, parents });
+      result.push({ goal: child, parents });
     }
   });
   return result;
@@ -647,12 +647,12 @@ function leaves(node) {
 }
 function drafts() {
   const { db } = new Vault().load();
-  const statementOf = new Map(statements(db.root).flatMap(({ statement, parents }) => [...parents.keys()].map((key) => [key, statement])));
+  const goalOf = new Map(goals(db.root).flatMap(({ goal, parents }) => [...parents.keys()].map((key) => [key, goal])));
   const groups = /* @__PURE__ */ new Map();
   for (const entry of db.entries.filter((entry2) => entry2.status === "draft")) {
-    const first = entry.links.find((link) => link.id && statementOf.has(link.id));
-    const statement = first?.id ? statementOf.get(first.id) : void 0;
-    const heading = statement ? `${statement.trail.join(" \u203A ")} \u203A ${statement.label}` : "Not linked to a known statement";
+    const first = entry.links.find((link) => link.id && goalOf.has(link.id));
+    const goal = first?.id ? goalOf.get(first.id) : void 0;
+    const heading = goal ? `${goal.trail.join(" \u203A ")} \u203A ${goal.label}` : "Not linked to a known goal";
     const lines = [
       `- ${entry.id} | ${entry.date} ${entry.title}`,
       `  items: ${entry.links.map((link) => link.text).join(" \xB7 ")}`,
@@ -679,15 +679,16 @@ function calloutBody(text, title) {
   const end = lines.findIndex((line, index) => index > start && !line.startsWith(">"));
   return lines.slice(start + 1, end === -1 ? void 0 : end).map((line) => line.replace(/^> ?/, ""));
 }
-function sheetNotes(vault, path, statementId) {
+function goalNotes(vault, path, goalId) {
   const text = vault.read(path);
   const question = /^> \[!question\] (.*)$/m.exec(text)?.[1] ?? "";
-  const notes2 = calloutBody(text, /^> \[!info\]-? Sheet notes/);
-  const firstStatement = notes2.findIndex((line) => /^\*\*Statement \d+:\*\*/.test(line));
-  const dimension = (firstStatement === -1 ? notes2 : notes2.slice(0, firstStatement)).filter((line) => line.trim());
-  const position = /(\d+)$/.exec(statementId)?.[1];
-  const own = notes2.find((line) => line.startsWith(`**Statement ${position}:**`));
-  return { question, dimension, statement: own?.replace(/^\*\*Statement \d+:\*\*\s*/, "") ?? "" };
+  const notes2 = calloutBody(text, /^> \[!info\]-? (Sheet )?[Nn]otes/);
+  const perGoal = /^\*\*(\^[A-Za-z0-9-]+|Statement \d+):\*\*/;
+  const firstGoal = notes2.findIndex((line) => perGoal.test(line));
+  const file = (firstGoal === -1 ? notes2 : notes2.slice(0, firstGoal)).filter((line) => line.trim());
+  const position = /(\d+)$/.exec(goalId)?.[1];
+  const own = notes2.find((line) => line.startsWith(`**^${goalId}:**`) || line.startsWith(`**Statement ${position}:**`));
+  return { question, file, goal: own?.replace(perGoal, "").trim() ?? "" };
 }
 function explain(ids) {
   if (!ids.length) {
@@ -695,8 +696,8 @@ function explain(ids) {
   }
   const vault = new Vault();
   const { db } = vault.load();
-  const statementOf = new Map(statements(db.root).flatMap(({ statement, parents }) => [...parents.keys()].map((key) => [key, statement])));
-  const unknown = ids.filter((id) => !statementOf.has(id));
+  const goalOf = new Map(goals(db.root).flatMap(({ goal, parents }) => [...parents.keys()].map((key) => [key, goal])));
+  const unknown = ids.filter((id) => !goalOf.has(id));
   if (unknown.length) {
     fail(`Unknown item: ${unknown.join(", ")}`);
   }
@@ -704,35 +705,36 @@ function explain(ids) {
   const shown = /* @__PURE__ */ new Set();
   const shownFiles = /* @__PURE__ */ new Set();
   for (const id of ids) {
-    const statement = statementOf.get(id);
-    if (shown.has(statement.key)) {
+    const goal = goalOf.get(id);
+    if (shown.has(goal.key)) {
       continue;
     }
-    shown.add(statement.key);
-    const notes2 = sheetNotes(vault, statement.path, statement.key);
+    shown.add(goal.key);
+    const notes2 = goalNotes(vault, goal.path, goal.key);
     const mark = (node) => asked.has(node.key) ? " <<" : "";
-    console.log(`## ${statement.trail.join(" / ")}${notes2.question ? `: ${notes2.question}` : ""}`);
+    console.log(`## ${goal.trail.join(" / ")}${notes2.question ? `: ${notes2.question}` : ""}`);
     console.log("");
-    if (!shownFiles.has(statement.path)) {
-      shownFiles.add(statement.path);
-      console.log("Dimension notes:");
-      console.log(notes2.dimension.length ? notes2.dimension.join("\n") : "(none)");
+    if (!shownFiles.has(goal.path)) {
+      shownFiles.add(goal.path);
+      console.log("Notes:");
+      console.log(notes2.file.length ? notes2.file.join("\n") : "(none)");
       console.log("");
     }
-    console.log(`Statement ^${statement.key}${mark(statement)}: ${statement.label}`);
-    console.log(`Statement note: ${notes2.statement || "(none)"}`);
-    if (statement.children.length) {
+    console.log(`Goal ^${goal.key}${mark(goal)}: ${goal.label}`);
+    console.log(`Goal note: ${notes2.goal || "(none)"}`);
+    if (goal.children.length) {
       console.log("Facets:");
-      walk(statement, (node, depth) => depth > 0 && console.log(`${"  ".repeat(depth - 1)}- ^${node.key}${mark(node)} ${node.label} (${status(node)})`));
+      walk(goal, (node, depth) => depth > 0 && console.log(`${"  ".repeat(depth - 1)}- ^${node.key}${mark(node)} ${node.label} (${status(node)})`));
     } else {
-      console.log(`Coverage: ${status(statement)}`);
+      console.log(`Coverage: ${status(goal)}`);
     }
     console.log("");
   }
   const note = vault.notes.guidelines;
-  const guidelines = existsSync2(vault.path(note)) ? vault.read(note).split(/\r?\n/).filter((line) => line.startsWith("- ")) : [];
-  console.log(`Rating guidelines (${note}):`);
-  console.log(guidelines.length ? guidelines.join("\n") : "(none: run the import)");
+  if (existsSync2(vault.path(note))) {
+    console.log(`Guidelines (${note}):`);
+    console.log(vault.read(note).split(/\r?\n/).filter((line) => line.startsWith("- ")).join("\n"));
+  }
 }
 function setStatus(id, status2) {
   if (!id || !STATUSES.includes(status2 ?? "")) {
@@ -750,18 +752,18 @@ function gaps(count) {
   const { db } = vault.load();
   const focus = vault.focusIds();
   const recent = new Set(vault.list("recently-asked"));
-  const candidates = statements(db.root).map(({ statement }) => {
-    const all = leaves(statement).filter((leaf) => !leaf.retired);
+  const candidates = goals(db.root).map(({ goal }) => {
+    const all = leaves(goal).filter((leaf) => !leaf.retired);
     const missing = all.filter((leaf) => !leaf.covered);
-    const rank = all.length > 1 && missing.length === 1 ? 0 : statement.confirmed + statement.drafts === 0 ? 1 : 2;
-    return { statement, all, missing, rank };
-  }).filter(({ statement, missing }) => missing.length && !statement.retired && !focus.has(statement.key) && !recent.has(statement.key)).sort((a, b) => a.rank - b.rank);
-  const dimension = (node) => node.trail.join(" \u203A ");
-  const picked = candidates.filter((candidate, index) => candidates.findIndex((other) => dimension(other.statement) === dimension(candidate.statement)) === index);
+    const rank = all.length > 1 && missing.length === 1 ? 0 : goal.confirmed + goal.drafts === 0 ? 1 : 2;
+    return { goal, all, missing, rank };
+  }).filter(({ goal, missing }) => missing.length && !goal.retired && !focus.has(goal.key) && !recent.has(goal.key)).sort((a, b) => a.rank - b.rank);
+  const file = (node) => node.trail.join(" \u203A ");
+  const picked = candidates.filter((candidate, index) => candidates.findIndex((other) => file(other.goal) === file(candidate.goal)) === index);
   const chosen = [...picked, ...candidates.filter((candidate) => !picked.includes(candidate))].slice(0, count);
-  for (const { statement, all, missing } of chosen) {
-    console.log(`${statement.key} | ${statement.trail.join(" \u203A ")} \u203A ${statement.label}`);
-    for (const leaf of missing.filter((leaf2) => leaf2 !== statement)) {
+  for (const { goal, all, missing } of chosen) {
+    console.log(`${goal.key} | ${goal.trail.join(" \u203A ")} \u203A ${goal.label}`);
+    for (const leaf of missing.filter((leaf2) => leaf2 !== goal)) {
       console.log(`  missing: ${leaf.label}`);
     }
     console.log(`  ${all.length - missing.length} of ${all.length} covered`);
@@ -841,9 +843,9 @@ function health() {
   console.log(problems.length ? problems.join("\n") : "OK");
 }
 var OVERVIEW = (folder) => `---
-reviewed-db: Matrix Reloaded evidence
-items-folder: ${folder}/Statements
-entries-folder: ${folder}/Evidence
+reviewed-db: Evidence
+items-folder: ${folder}/Goals
+entries-folder: ${folder}/Log
 coverage: all
 order: []
 ---
@@ -851,11 +853,9 @@ order: []
 \`\`\`reviewed-db
 \`\`\`
 
-A statement is covered when every facet has at least one confirmed piece of evidence. Statements without facets need one confirmed piece themselves.
+A goal is covered when every facet has at least one confirmed piece of evidence. Goals without facets need one confirmed piece themselves.
 `;
 var CONFIG = `---
-base-profile:
-growth-profile:
 timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
 review-days: Mon Tue Wed Thu Fri
 review-hours: 9-17
@@ -868,14 +868,14 @@ recently-asked: []
 
 Settings for the evidence tracker. Claude maintains most of them; edit the ones marked as yours.
 
-- **base-profile / growth-profile** (yours): sheet names exactly as in the Matrix Reloaded sheet in \`Source/\`, e.g. \`Expert - core (7)\`. Culture is always included. After changing them, ask Claude to re-run the import.
 - **timezone, review-days, review-hours, weekly** (yours): when scheduled reviews may run, and when the weekly part is due (day and hour).
-- **focus** (yours): statements to work on this period. Ask Claude to set them.
+- **focus** (yours): goals to work on this period. Ask Claude to set them.
 - **last-mined-at, last-mine-status**: how far scheduled runs have collected activity, and whether the last run worked.
 - **mining-start, backfill-until, backfilled-through**: the optional backfill of older history.
 - **last-review-at / last-weekly-at**: when the review and the weekly part last finished.
-- **recently-asked**: statements the last weekly parts asked about, so questions rotate.
-- Sources and routine: see \`Routine.md\`.
+- **recently-asked**: goals the last weekly parts asked about, so questions rotate.
+- **base-profile / growth-profile**: only for the Matrix Reloaded importer: sheet names as in the sheet in \`Source/\`, e.g. \`Expert - core (7)\`.
+- Goals: see \`Goals/\`. Sources and routine: see \`Routine.md\`.
 `;
 function init(args) {
   const option = (name) => {
@@ -883,13 +883,13 @@ function init(args) {
     return index >= 0 ? args[index + 1] : void 0;
   };
   const vaultPath = option("vault") ?? fail("Usage: tracker init --vault <absolute path> [--folder <name>]");
-  const folder = option("folder") ?? "Matrix Reloaded";
+  const folder = option("folder") ?? "Evidence";
   const root = isAbsolute(vaultPath) ? vaultPath : resolve(vaultPath);
   if (!existsSync2(join2(root, ".obsidian"))) {
     fail(`${root} is not an Obsidian vault (no .obsidian folder).`);
   }
   const paths = notes(folder);
-  for (const dir of [paths.statements, paths.evidence, paths.source]) {
+  for (const dir of [`${folder}/Goals`, `${folder}/Log`, paths.source]) {
     mkdirSync(join2(root, dir), { recursive: true });
   }
   for (const [note, text] of [

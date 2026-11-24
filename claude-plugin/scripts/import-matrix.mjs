@@ -1,6 +1,6 @@
 // Generated from cli/ by `yarn build:cli`. Do not edit.
 
-// cli/import.ts
+// cli/import-matrix.ts
 import { existsSync as existsSync2, mkdirSync, readdirSync as readdirSync2, readFileSync as readFileSync3, writeFileSync as writeFileSync2 } from "node:fs";
 import { dirname, join as join2 } from "node:path";
 
@@ -414,15 +414,15 @@ function countLeaves(node) {
 import { existsSync, readdirSync, readFileSync as readFileSync2, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-var SETTINGS_FILE = join(homedir(), ".matrix-reloaded.json");
+var SETTINGS_FILE = join(homedir(), ".operator.json");
 function fail(message) {
   console.error(message);
   process.exit(1);
 }
 function location() {
-  const fromEnv = process.env.MATRIX_RELOADED_VAULT;
+  const fromEnv = process.env.OPERATOR_VAULT;
   if (fromEnv) {
-    return { vault: fromEnv, folder: process.env.MATRIX_RELOADED_FOLDER ?? "Matrix Reloaded" };
+    return { vault: fromEnv, folder: process.env.OPERATOR_FOLDER ?? "Evidence" };
   }
   if (!existsSync(SETTINGS_FILE)) {
     fail(`No tracker set up: ${SETTINGS_FILE} is missing. Run \`tracker init --vault <path>\` first.`);
@@ -437,10 +437,8 @@ function notes(folder) {
   return {
     database: `${folder}/Overview.md`,
     config: `${folder}/Config.md`,
-    guidelines: `${folder}/Rating guidelines.md`,
-    statements: `${folder}/Statements`,
-    evidence: `${folder}/Evidence`,
-    source: `${folder}/Source`
+    source: `${folder}/Source`,
+    routine: `${folder}/Routine.md`
   };
 }
 function frontmatter(text) {
@@ -496,7 +494,9 @@ var Vault = class {
   constructor(where = location()) {
     this.root = where.vault;
     this.folder = where.folder;
-    this.notes = notes(where.folder);
+    const base = notes(where.folder);
+    const guidelines = existsSync(join(this.root, base.config)) ? frontmatter(readFileSync2(join(this.root, base.config), "utf8")).guidelines : "";
+    this.notes = { ...base, guidelines: `${where.folder}/${typeof guidelines === "string" && guidelines ? guidelines : "Guidelines.md"}` };
   }
   path(note) {
     return join(this.root, note);
@@ -538,10 +538,11 @@ var Vault = class {
   }
 };
 
-// cli/import.ts
+// cli/import-matrix.ts
 var vault = new Vault();
-var STATEMENTS = vault.path(vault.notes.statements);
-var GUIDELINES = vault.path(vault.notes.guidelines);
+var STATEMENTS = vault.path(vault.load().config.itemsFolder);
+var GUIDELINES_NAME = "Rating guidelines.md";
+var GUIDELINES = vault.path(`${vault.folder}/${GUIDELINES_NAME}`);
 var CULTURE_SHEET = "Culture Score";
 var GUIDELINES_SHEET = "Session details";
 function sourceSheet() {
@@ -779,11 +780,12 @@ function main() {
     for (const dimension of profile.dimensions) {
       const path = `${profile.folder}/${dimension.name}.md`;
       const file = join2(STATEMENTS, path);
-      const existing = existsSync2(file) ? readBlocks(readFileSync3(file, "utf8")) : [];
-      outputs.set(path, renderDimension(profile, dimension, existing, path));
+      const existing2 = existsSync2(file) ? readBlocks(readFileSync3(file, "utf8")) : [];
+      outputs.set(path, renderDimension(profile, dimension, existing2, path));
     }
   }
-  for (const path of statementFiles()) {
+  const managed = (path) => /^profile:/m.test(readFileSync3(join2(STATEMENTS, path), "utf8").split(/^---$/m)[1] ?? "");
+  for (const path of statementFiles().filter(managed)) {
     if (!outputs.has(path)) {
       outputs.set(path, retireFile(readFileSync3(join2(STATEMENTS, path), "utf8"), path));
     }
@@ -811,13 +813,21 @@ function main() {
   }
   const guidelines = renderGuidelines(sheets);
   if (!existsSync2(GUIDELINES) || readFileSync3(GUIDELINES, "utf8") !== guidelines) {
-    report.written.push("../Rating guidelines.md");
+    report.written.push(GUIDELINES_NAME);
     if (!dryRun) {
       writeFileSync2(GUIDELINES, guidelines);
     }
   }
+  if (vault.setting("guidelines") !== GUIDELINES_NAME) {
+    report.written.push(`guidelines in ${vault.notes.config}`);
+    if (!dryRun) {
+      vault.write(vault.notes.config, setProperty(vault.read(vault.notes.config), "guidelines", GUIDELINES_NAME));
+    }
+  }
   const database = vault.notes.database;
-  const unique = [...new Set(order)];
+  const current = frontmatter(vault.read(database)).order;
+  const existing = Array.isArray(current) ? current : current ? [current] : [];
+  const unique = [.../* @__PURE__ */ new Set([...order, ...existing])];
   const ordered = setProperty(vault.read(database), "order", unique);
   if (ordered !== vault.read(database)) {
     report.written.push(`order in ${database}`);

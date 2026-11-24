@@ -1,6 +1,8 @@
-# Matrix Reloaded (Claude plugin)
+# Operator (Claude plugin)
 
-Collects evidence for your Luscii Matrix Reloaded compensation statements in an Obsidian vault, shown with the [Reviewed Entries](../README.md) Obsidian plugin. Evidence only: no grading, no salary.
+Logs evidence of your work against your own goals, in an Obsidian vault shown with the [Reviewed Entries](../README.md) Obsidian plugin. Goals can be anything you want evidence for: development goals, OKRs, role accountabilities, or Luscii's Matrix Reloaded compensation statements, which it can import directly. Evidence only: no grading.
+
+Each goal can split into **facets**: parts of the same goal that each need their own evidence. A goal counts as covered when every facet has confirmed evidence.
 
 ## Requirements
 
@@ -14,7 +16,7 @@ Collects evidence for your Luscii Matrix Reloaded compensation statements in an 
 
 | Script | Does |
 |---|---|
-| `tracker.mjs` | Set up the tracker folder, list statements and coverage, add and review entries, explain statements, settings, review window and health |
-| `import.mjs` | Import statements from the Matrix Reloaded sheet (`.ods`) into the vault, and the rating guidelines |
+| `tracker.mjs` | Set up the tracker folder, list goals and coverage, add and review entries, explain goals, settings, review window and health |
+| `import-matrix.mjs` | Optional: import Luscii's Matrix Reloaded sheet (`.ods`) as goals, with its notes and rating guidelines |
 
-The tracker finds your vault through `~/.matrix-reloaded.json`, written by `tracker.mjs init`, or the `MATRIX_RELOADED_VAULT` and `MATRIX_RELOADED_FOLDER` environment variables.
+The tracker finds your vault through `~/.operator.json`, written by `tracker.mjs init`, or the `OPERATOR_VAULT` and `OPERATOR_FOLDER` environment variables.

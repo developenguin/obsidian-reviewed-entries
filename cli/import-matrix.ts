@@ -1,5 +1,6 @@
-// Imports statements from the Matrix Reloaded sheet into item files for the
-// Reviewed Entries plugin (see docs/format.md).
+// Optional goal source: imports the statements of Luscii's Matrix Reloaded
+// compensation sheet as goals, one file per dimension (see docs/format.md).
+// Files it manages have a `profile` property; other goal files are left alone.
 //
 // Re-runnable: a statement whose text is unchanged keeps its block verbatim,
 // facets included. A changed statement gets the new text plus #text-changed
@@ -8,19 +9,21 @@
 // Nested bullets without a block ID get one.
 //
 // The sheet is the one .ods file in the tracker's Source folder. The import
-// also writes Rating guidelines.md and the `order` of the overview note.
+// also writes Rating guidelines.md (shown by `tracker explain`) and puts the
+// sheet's profiles and dimensions first in the overview's `order`.
 //
-// Usage: import [--dry-run]
+// Usage: import-matrix [--dry-run]
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { readOds, type Sheet } from './ods.ts';
 import { parseItems, type Item } from '../src/model.ts';
-import { fail, setProperty, Vault } from './vault.ts';
+import { fail, frontmatter, setProperty, Vault } from './vault.ts';
 
 const vault = new Vault();
-const STATEMENTS = vault.path(vault.notes.statements);
-const GUIDELINES = vault.path(vault.notes.guidelines);
+const STATEMENTS = vault.path(vault.load().config.itemsFolder);
+const GUIDELINES_NAME = 'Rating guidelines.md';
+const GUIDELINES = vault.path(`${vault.folder}/${GUIDELINES_NAME}`);
 const CULTURE_SHEET = 'Culture Score';
 const GUIDELINES_SHEET = 'Session details';
 
@@ -376,7 +379,9 @@ function main(): void {
 		}
 	}
 
-	for (const path of statementFiles()) {
+	const managed = (path: string) => /^profile:/m.test(readFileSync(join(STATEMENTS, path), 'utf8').split(/^---$/m)[1] ?? '');
+
+	for (const path of statementFiles().filter(managed)) {
 		if (!outputs.has(path)) {
 			outputs.set(path, retireFile(readFileSync(join(STATEMENTS, path), 'utf8'), path));
 		}
@@ -414,15 +419,25 @@ function main(): void {
 	const guidelines = renderGuidelines(sheets);
 
 	if (!existsSync(GUIDELINES) || readFileSync(GUIDELINES, 'utf8') !== guidelines) {
-		report.written.push('../Rating guidelines.md');
+		report.written.push(GUIDELINES_NAME);
 
 		if (!dryRun) {
 			writeFileSync(GUIDELINES, guidelines);
 		}
 	}
 
+	if (vault.setting('guidelines') !== GUIDELINES_NAME) {
+		report.written.push(`guidelines in ${vault.notes.config}`);
+
+		if (!dryRun) {
+			vault.write(vault.notes.config, setProperty(vault.read(vault.notes.config), 'guidelines', GUIDELINES_NAME));
+		}
+	}
+
 	const database = vault.notes.database;
-	const unique = [...new Set(order)];
+	const current = frontmatter(vault.read(database)).order;
+	const existing = Array.isArray(current) ? current : current ? [current] : [];
+	const unique = [...new Set([...order, ...existing])];
 	const ordered = setProperty(vault.read(database), 'order', unique);
 
 	if (ordered !== vault.read(database)) {

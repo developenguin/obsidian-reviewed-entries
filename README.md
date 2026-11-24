@@ -42,7 +42,7 @@ It takes absolute paths, several separated by `:` (`;` on Windows). A variable s
 
 ### Claude plugin
 
-[`claude-plugin/`](claude-plugin) is a Claude Code plugin for one use of this format: evidence for Luscii's Matrix Reloaded statements. Its command-line tools are written in [`cli/`](cli), share `src/model.ts` with the Obsidian plugin, and are bundled into `claude-plugin/scripts/` with `yarn build:cli`. Commit the bundle together with the source.
+[`claude-plugin/`](claude-plugin) is **Operator**, a Claude Code plugin that uses this format to log evidence of work against goals, with an optional importer for Luscii's Matrix Reloaded statements. Its command-line tools are written in [`cli/`](cli), share `src/model.ts` with the Obsidian plugin, and are bundled into `claude-plugin/scripts/` with `yarn build:cli`. Commit the bundle together with the source.
 
 ### Layout
 

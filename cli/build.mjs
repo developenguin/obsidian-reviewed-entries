@@ -3,7 +3,7 @@
 import esbuild from 'esbuild';
 
 await esbuild.build({
-	entryPoints: { tracker: 'cli/tracker.ts', import: 'cli/import.ts' },
+	entryPoints: { tracker: 'cli/tracker.ts', 'import-matrix': 'cli/import-matrix.ts' },
 	bundle: true,
 	platform: 'node',
 	format: 'esm',

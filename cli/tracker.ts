@@ -1,14 +1,14 @@
-// Command-line helper for the Matrix Reloaded evidence skills.
+// Command-line helper for the Operator evidence skills.
 //
 //   tracker init --vault <path> [--folder <name>]  set up the tracker folder
 //   tracker where                     vault and tracker folder in use
-//   tracker items [--json]            statements and facets, with coverage
+//   tracker items [--json]            goals and facets, with coverage
 //   tracker add <file.json|->         append entries (see AddInput)
 //   tracker check                     warnings from the database
-//   tracker drafts                    draft entries, grouped by statement
+//   tracker drafts                    draft entries, grouped by goal
 //   tracker status <id> <draft|confirmed|rejected>
-//   tracker explain <id…>             what a statement means: sheet notes, facets, rating guidelines
-//   tracker gaps [count]              statements to ask about, rotating
+//   tracker explain <id…>             what a goal means: notes, facets, guidelines
+//   tracker gaps [count]              goals to ask about, rotating
 //   tracker config [key [value…]]     read or set a Config.md property
 //   tracker window                    is it inside the review days and hours?
 //   tracker health                    did the last weekly part and collection succeed?
@@ -23,7 +23,7 @@ interface AddInput {
 	/** Date of the activity, YYYY-MM-DD. */
 	date: string;
 	title: string;
-	/** Block IDs of statements or facets. */
+	/** Block IDs of goals or facets. */
 	items: string[];
 	/** Where it happened, Markdown allowed, e.g. "[org/repo#123](https://…)". */
 	source: string;
@@ -211,9 +211,9 @@ function add(source: string): void {
 	}
 }
 
-/** Statements: items directly under a dimension file. Facets sit below them. */
-function statements(root: Node): { statement: Node; parents: Map<string, Node> }[] {
-	const result: { statement: Node; parents: Map<string, Node> }[] = [];
+/** Goals: the top-level items of each file. Facets sit below them. */
+function goals(root: Node): { goal: Node; parents: Map<string, Node> }[] {
+	const result: { goal: Node; parents: Map<string, Node> }[] = [];
 
 	walk(root, (node) => {
 		if (node.kind !== 'group') {
@@ -223,7 +223,7 @@ function statements(root: Node): { statement: Node; parents: Map<string, Node> }
 		for (const child of node.children.filter((child) => child.kind === 'item')) {
 			const parents = new Map<string, Node>();
 			walk(child, (descendant) => parents.set(descendant.key, child));
-			result.push({ statement: child, parents });
+			result.push({ goal: child, parents });
 		}
 	});
 
@@ -236,13 +236,13 @@ function leaves(node: Node): Node[] {
 
 function drafts(): void {
 	const { db } = new Vault().load();
-	const statementOf = new Map(statements(db.root).flatMap(({ statement, parents }) => [...parents.keys()].map((key) => [key, statement] as const)));
+	const goalOf = new Map(goals(db.root).flatMap(({ goal, parents }) => [...parents.keys()].map((key) => [key, goal] as const)));
 	const groups = new Map<string, string[]>();
 
 	for (const entry of db.entries.filter((entry) => entry.status === 'draft')) {
-		const first = entry.links.find((link) => link.id && statementOf.has(link.id));
-		const statement = first?.id ? statementOf.get(first.id) : undefined;
-		const heading = statement ? `${statement.trail.join(' › ')} › ${statement.label}` : 'Not linked to a known statement';
+		const first = entry.links.find((link) => link.id && goalOf.has(link.id));
+		const goal = first?.id ? goalOf.get(first.id) : undefined;
+		const heading = goal ? `${goal.trail.join(' › ')} › ${goal.label}` : 'Not linked to a known goal';
 		const lines = [
 			`- ${entry.id} | ${entry.date} ${entry.title}`,
 			`  items: ${entry.links.map((link) => link.text).join(' · ')}`,
@@ -278,17 +278,24 @@ function calloutBody(text: string, title: RegExp): string[] {
 	return lines.slice(start + 1, end === -1 ? undefined : end).map((line) => line.replace(/^> ?/, ''));
 }
 
-/** Dimension question, dimension notes and the statement's own note, from the dimension file. */
-function sheetNotes(vault: Vault, path: string, statementId: string): { question: string; dimension: string[]; statement: string } {
+/**
+ * Notes for a goal from its file: the file's question (`> [!question] …`),
+ * the file's notes and the goal's own note. Notes live in a collapsed
+ * `> [!info]- Notes` callout (the Matrix importer calls it "Sheet notes"):
+ * general lines first, then one line per goal, `**^<goal id>:** …` or, from
+ * the Matrix importer, `**Statement <position>:** …`.
+ */
+function goalNotes(vault: Vault, path: string, goalId: string): { question: string; file: string[]; goal: string } {
 	const text = vault.read(path);
 	const question = /^> \[!question\] (.*)$/m.exec(text)?.[1] ?? '';
-	const notes = calloutBody(text, /^> \[!info\]-? Sheet notes/);
-	const firstStatement = notes.findIndex((line) => /^\*\*Statement \d+:\*\*/.test(line));
-	const dimension = (firstStatement === -1 ? notes : notes.slice(0, firstStatement)).filter((line) => line.trim());
-	const position = /(\d+)$/.exec(statementId)?.[1];
-	const own = notes.find((line) => line.startsWith(`**Statement ${position}:**`));
+	const notes = calloutBody(text, /^> \[!info\]-? (Sheet )?[Nn]otes/);
+	const perGoal = /^\*\*(\^[A-Za-z0-9-]+|Statement \d+):\*\*/;
+	const firstGoal = notes.findIndex((line) => perGoal.test(line));
+	const file = (firstGoal === -1 ? notes : notes.slice(0, firstGoal)).filter((line) => line.trim());
+	const position = /(\d+)$/.exec(goalId)?.[1];
+	const own = notes.find((line) => line.startsWith(`**^${goalId}:**`) || line.startsWith(`**Statement ${position}:**`));
 
-	return { question, dimension, statement: own?.replace(/^\*\*Statement \d+:\*\*\s*/, '') ?? '' };
+	return { question, file, goal: own?.replace(perGoal, '').trim() ?? '' };
 }
 
 function explain(ids: string[]): void {
@@ -298,8 +305,8 @@ function explain(ids: string[]): void {
 
 	const vault = new Vault();
 	const { db } = vault.load();
-	const statementOf = new Map(statements(db.root).flatMap(({ statement, parents }) => [...parents.keys()].map((key) => [key, statement] as const)));
-	const unknown = ids.filter((id) => !statementOf.has(id));
+	const goalOf = new Map(goals(db.root).flatMap(({ goal, parents }) => [...parents.keys()].map((key) => [key, goal] as const)));
+	const unknown = ids.filter((id) => !goalOf.has(id));
 
 	if (unknown.length) {
 		fail(`Unknown item: ${unknown.join(', ')}`);
@@ -310,43 +317,45 @@ function explain(ids: string[]): void {
 	const shownFiles = new Set<string>();
 
 	for (const id of ids) {
-		const statement = statementOf.get(id)!;
+		const goal = goalOf.get(id)!;
 
-		if (shown.has(statement.key)) {
+		if (shown.has(goal.key)) {
 			continue;
 		}
 
-		shown.add(statement.key);
+		shown.add(goal.key);
 
-		const notes = sheetNotes(vault, statement.path, statement.key);
+		const notes = goalNotes(vault, goal.path, goal.key);
 		const mark = (node: Node) => (asked.has(node.key) ? ' <<' : '');
 
-		console.log(`## ${statement.trail.join(' / ')}${notes.question ? `: ${notes.question}` : ''}`);
+		console.log(`## ${goal.trail.join(' / ')}${notes.question ? `: ${notes.question}` : ''}`);
 		console.log('');
-		if (!shownFiles.has(statement.path)) {
-			shownFiles.add(statement.path);
-			console.log('Dimension notes:');
-			console.log(notes.dimension.length ? notes.dimension.join('\n') : '(none)');
+		if (!shownFiles.has(goal.path)) {
+			shownFiles.add(goal.path);
+			console.log('Notes:');
+			console.log(notes.file.length ? notes.file.join('\n') : '(none)');
 			console.log('');
 		}
 
-		console.log(`Statement ^${statement.key}${mark(statement)}: ${statement.label}`);
-		console.log(`Statement note: ${notes.statement || '(none)'}`);
+		console.log(`Goal ^${goal.key}${mark(goal)}: ${goal.label}`);
+		console.log(`Goal note: ${notes.goal || '(none)'}`);
 
-		if (statement.children.length) {
+		if (goal.children.length) {
 			console.log('Facets:');
-			walk(statement, (node, depth) => depth > 0 && console.log(`${'  '.repeat(depth - 1)}- ^${node.key}${mark(node)} ${node.label} (${status(node)})`));
+			walk(goal, (node, depth) => depth > 0 && console.log(`${'  '.repeat(depth - 1)}- ^${node.key}${mark(node)} ${node.label} (${status(node)})`));
 		} else {
-			console.log(`Coverage: ${status(statement)}`);
+			console.log(`Coverage: ${status(goal)}`);
 		}
 
 		console.log('');
 	}
 
 	const note = vault.notes.guidelines;
-	const guidelines = existsSync(vault.path(note)) ? vault.read(note).split(/\r?\n/).filter((line) => line.startsWith('- ')) : [];
-	console.log(`Rating guidelines (${note}):`);
-	console.log(guidelines.length ? guidelines.join('\n') : '(none: run the import)');
+
+	if (existsSync(vault.path(note))) {
+		console.log(`Guidelines (${note}):`);
+		console.log(vault.read(note).split(/\r?\n/).filter((line) => line.startsWith('- ')).join('\n'));
+	}
 }
 
 function setStatus(id: string | undefined, status: string | undefined): void {
@@ -364,8 +373,8 @@ function setStatus(id: string | undefined, status: string | undefined): void {
 }
 
 /**
- * Statements to ask about in the review. Prefers statements with one facet
- * left, then statements without any evidence; skips focus statements (asked
+ * Goals to ask about in the review. Prefers goals with one facet
+ * left, then goals without any evidence; skips focus goals (asked
  * about separately) and the ones in `recently-asked`, so questions rotate.
  */
 function gaps(count: number): void {
@@ -374,26 +383,26 @@ function gaps(count: number): void {
 	const focus = vault.focusIds();
 	const recent = new Set(vault.list('recently-asked'));
 
-	const candidates = statements(db.root)
-		.map(({ statement }) => {
-			const all = leaves(statement).filter((leaf) => !leaf.retired);
+	const candidates = goals(db.root)
+		.map(({ goal }) => {
+			const all = leaves(goal).filter((leaf) => !leaf.retired);
 			const missing = all.filter((leaf) => !leaf.covered);
-			const rank = all.length > 1 && missing.length === 1 ? 0 : statement.confirmed + statement.drafts === 0 ? 1 : 2;
+			const rank = all.length > 1 && missing.length === 1 ? 0 : goal.confirmed + goal.drafts === 0 ? 1 : 2;
 
-			return { statement, all, missing, rank };
+			return { goal, all, missing, rank };
 		})
-		.filter(({ statement, missing }) => missing.length && !statement.retired && !focus.has(statement.key) && !recent.has(statement.key))
+		.filter(({ goal, missing }) => missing.length && !goal.retired && !focus.has(goal.key) && !recent.has(goal.key))
 		.sort((a, b) => a.rank - b.rank);
 
-	// At most one statement per dimension, unless there aren't enough.
-	const dimension = (node: Node) => node.trail.join(' › ');
-	const picked = candidates.filter((candidate, index) => candidates.findIndex((other) => dimension(other.statement) === dimension(candidate.statement)) === index);
+	// At most one goal per file, unless there aren't enough.
+	const file = (node: Node) => node.trail.join(' › ');
+	const picked = candidates.filter((candidate, index) => candidates.findIndex((other) => file(other.goal) === file(candidate.goal)) === index);
 	const chosen = [...picked, ...candidates.filter((candidate) => !picked.includes(candidate))].slice(0, count);
 
-	for (const { statement, all, missing } of chosen) {
-		console.log(`${statement.key} | ${statement.trail.join(' › ')} › ${statement.label}`);
+	for (const { goal, all, missing } of chosen) {
+		console.log(`${goal.key} | ${goal.trail.join(' › ')} › ${goal.label}`);
 
-		for (const leaf of missing.filter((leaf) => leaf !== statement)) {
+		for (const leaf of missing.filter((leaf) => leaf !== goal)) {
 			console.log(`  missing: ${leaf.label}`);
 		}
 
@@ -511,9 +520,9 @@ function health(): void {
 }
 
 const OVERVIEW = (folder: string) => `---
-reviewed-db: Matrix Reloaded evidence
-items-folder: ${folder}/Statements
-entries-folder: ${folder}/Evidence
+reviewed-db: Evidence
+items-folder: ${folder}/Goals
+entries-folder: ${folder}/Log
 coverage: all
 order: []
 ---
@@ -521,12 +530,10 @@ order: []
 \`\`\`reviewed-db
 \`\`\`
 
-A statement is covered when every facet has at least one confirmed piece of evidence. Statements without facets need one confirmed piece themselves.
+A goal is covered when every facet has at least one confirmed piece of evidence. Goals without facets need one confirmed piece themselves.
 `;
 
 const CONFIG = `---
-base-profile:
-growth-profile:
 timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
 review-days: Mon Tue Wed Thu Fri
 review-hours: 9-17
@@ -539,14 +546,14 @@ recently-asked: []
 
 Settings for the evidence tracker. Claude maintains most of them; edit the ones marked as yours.
 
-- **base-profile / growth-profile** (yours): sheet names exactly as in the Matrix Reloaded sheet in \`Source/\`, e.g. \`Expert - core (7)\`. Culture is always included. After changing them, ask Claude to re-run the import.
 - **timezone, review-days, review-hours, weekly** (yours): when scheduled reviews may run, and when the weekly part is due (day and hour).
-- **focus** (yours): statements to work on this period. Ask Claude to set them.
+- **focus** (yours): goals to work on this period. Ask Claude to set them.
 - **last-mined-at, last-mine-status**: how far scheduled runs have collected activity, and whether the last run worked.
 - **mining-start, backfill-until, backfilled-through**: the optional backfill of older history.
 - **last-review-at / last-weekly-at**: when the review and the weekly part last finished.
-- **recently-asked**: statements the last weekly parts asked about, so questions rotate.
-- Sources and routine: see \`Routine.md\`.
+- **recently-asked**: goals the last weekly parts asked about, so questions rotate.
+- **base-profile / growth-profile**: only for the Matrix Reloaded importer: sheet names as in the sheet in \`Source/\`, e.g. \`Expert - core (7)\`.
+- Goals: see \`Goals/\`. Sources and routine: see \`Routine.md\`.
 `;
 
 function init(args: string[]): void {
@@ -556,7 +563,7 @@ function init(args: string[]): void {
 		return index >= 0 ? args[index + 1] : undefined;
 	};
 	const vaultPath = option('vault') ?? fail('Usage: tracker init --vault <absolute path> [--folder <name>]');
-	const folder = option('folder') ?? 'Matrix Reloaded';
+	const folder = option('folder') ?? 'Evidence';
 	const root = isAbsolute(vaultPath) ? vaultPath : resolve(vaultPath);
 
 	if (!existsSync(join(root, '.obsidian'))) {
@@ -565,7 +572,7 @@ function init(args: string[]): void {
 
 	const paths = notes(folder);
 
-	for (const dir of [paths.statements, paths.evidence, paths.source]) {
+	for (const dir of [`${folder}/Goals`, `${folder}/Log`, paths.source]) {
 		mkdirSync(join(root, dir), { recursive: true });
 	}
 
