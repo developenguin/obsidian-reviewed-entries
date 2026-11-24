@@ -1,19 +1,19 @@
 ---
 name: backfill
-description: Fill the Matrix Reloaded evidence tracker with evidence from earlier months, one month at a time, from the sources in Routine.md. Use when the user runs /matrix-reloaded:backfill or asks to backfill or import older evidence. Never in a scheduled run.
+description: Fill the evidence tracker with evidence from earlier months, one month at a time, from the sources in Routine.md. Use when the user runs /operator:backfill or asks to backfill or import older evidence. Never in a scheduled run.
 ---
 
 # Backfill older evidence
 
 Read `${CLAUDE_PLUGIN_ROOT}/references/ai-policy.md` and `${CLAUDE_PLUGIN_ROOT}/references/evidence-rules.md` first and follow them throughout.
 
-`<tracker>` is `node "${CLAUDE_PLUGIN_ROOT}/scripts/tracker.mjs"`. Sources come from `Routine.md` in the tracker folder; if it's missing, suggest `/matrix-reloaded:routine` first.
+`<tracker>` is `node "${CLAUDE_PLUGIN_ROOT}/scripts/tracker.mjs"`. Sources come from `Routine.md` in the tracker folder; if it's missing, suggest `/operator:routine` first.
 
 The backfill fills history from `mining-start` (or `backfilled-through`, if a backfill already started) up to `backfill-until`, where the regular reviews took over. It never moves the regular cursors.
 
 ## Start
 
-If `mining-start` and `backfill-until` aren't set, ask how far back to go. The rating guidelines look at the last 8–12 weeks, so a few months is usually enough; older evidence still helps show consistency. Set `mining-start` (YYYY-MM-DD) and `backfill-until` (the moment regular reviews started, ISO UTC).
+If `mining-start` and `backfill-until` aren't set, ask how far back to go. The guidelines look at the last 8–12 weeks, so a few months is usually enough; older evidence still helps show consistency. Set `mining-start` (YYYY-MM-DD) and `backfill-until` (the moment regular reviews started, ISO UTC).
 
 ## Per calendar month, oldest first
 

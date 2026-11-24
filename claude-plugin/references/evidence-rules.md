@@ -10,18 +10,18 @@ Shared by every skill that proposes, writes or edits evidence. `<tracker>` is `n
 - Small examples (one library choice, one quick fix) are worth an entry only while the facet has no stronger evidence.
 - Requests that reach the user through a role they hold count as recognition of their expertise too.
 
-## Linking statements
+## Linking goals
 
-1. `<tracker> items` lists statements and facets with IDs, coverage and `[Focus]` markers.
-2. **Always** run `<tracker> explain <ids…>` for every candidate, in one call. It prints the dimension notes, the statement's own note (with "Not this:" examples) and the rating guidelines. Link only when the explanation supports the match, not the wording alone.
-3. Take "is able to X" versus "does X" literally. For a growth profile, measure against the level its dimension notes describe.
-4. Link one to three items that plainly fit. A large project (a multi-month migration, a new app) may link more, as long as each link is warranted on its own. When a statement has facets, link the facets.
+1. `<tracker> items` lists goals and facets with IDs, coverage and `[Focus]` markers.
+2. **Always** run `<tracker> explain <ids…>` for every candidate, in one call. It prints the notes, the goal's own note (with "Not this:" examples) and the guidelines. Link only when the explanation supports the match, not the wording alone.
+3. Take the wording literally: "is able to X" is not "does X", and "consistently" needs more than one example. When goals describe a level (a growth profile, a next role), measure against that level as the notes describe it.
+4. Link one to three items that plainly fit. A large project (a multi-month migration, a new app) may link more, as long as each link is warranted on its own. When a goal has facets, link the facets.
 5. Don't stretch a match to fill a gap. If nothing fits, propose no link and say why.
-6. When showing a proposal to the user, name each linked item by its text (facet and statement), never by ID alone.
+6. When showing a proposal to the user, name each linked item by its text (facet and goal), never by ID alone.
 
-## Rating guidelines to keep in mind
+## Guidelines to keep in mind
 
-From the sheet (`<tracker> explain` prints them in full): a statement counts only when every part of it is true, the behaviour is consistent over the last 8–12 weeks, and there is a concrete example. Evidence should make that visible: concrete examples, spread over time.
+If the tracker has a guidelines note, `<tracker> explain` prints it: follow it. Without one, assume a goal counts when every part of it is true, shown by concrete examples spread over time, not a single moment.
 
 ## Entry format
 
@@ -37,7 +37,7 @@ From the sheet (`<tracker> explain` prints them in full): a statement counts onl
 - Work that continues an existing entry (a follow-up PR, the next step) gets a bullet in that entry instead of a new one.
 - Feedback entries say whether the feedback was positive or critical, and whether it was role-based or personal.
 - Reviews of others' work (code reviews, document reviews) go into one entry per month, ref `<kind>-reviews:YYYY-MM`, for substantial reviews only: design feedback, caught bugs, coaching.
-- Keep Luscii and Dutch terms as they are (circle, tension, ZorgBijJou). Luscii uses Holacracy constitution v5: Circle Lead, not Lead Link.
+- Keep the organisation's own terms as they are, and don't translate them. At Luscii: circle, tension, ZorgBijJou; Holacracy constitution v5, so Circle Lead, not Lead Link.
 
 ## Adding entries
 

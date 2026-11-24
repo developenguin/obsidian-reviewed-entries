@@ -1,13 +1,13 @@
 ---
 name: routine
-description: Set up or change the user's Matrix Reloaded evidence routine - which sources evidence comes from and how to collect each one, how often reviews run, and how the user hears that a review is waiting. Writes Routine.md in the tracker folder and creates the scheduled tasks. Use when the user runs /matrix-reloaded:routine, wants to add or drop a source, or change when or how reviews happen.
+description: Set up or change the user's evidence routine - which sources evidence comes from and how to collect each one, how often reviews run, and how the user hears that a review is waiting. Writes Routine.md in the tracker folder and creates the scheduled tasks. Use when the user runs /operator:routine, wants to add or drop a source, or change when or how reviews happen.
 ---
 
 # Set up the review routine
 
 Read `${CLAUDE_PLUGIN_ROOT}/references/ai-policy.md` first. Every source must pass it: approved connections only, read-only, and no new connections set up by you.
 
-`<tracker>` is `node "${CLAUDE_PLUGIN_ROOT}/scripts/tracker.mjs"`. `<tracker> where` prints the tracker folder; it must exist (else run `/matrix-reloaded:setup` first).
+`<tracker>` is `node "${CLAUDE_PLUGIN_ROOT}/scripts/tracker.mjs"`. `<tracker> where` prints the tracker folder; it must exist (else run `/operator:setup` first).
 
 The result is `Routine.md` in the tracker folder: the user's own collection plan, which the review and backfill skills follow. Nothing in it is prebuilt; you work it out with the user. If it exists, show it and ask what to change.
 
@@ -41,7 +41,7 @@ Ask how often to review (daily on review days, or weekly) and confirm `review-da
 
 Reviews run as scheduled tasks in the Claude desktop app. Create them with the scheduled-task tools, after showing the user the schedule and prompt:
 
-- **Review**: on the review days, inside the review hours. Prompt: run the `matrix-reloaded:review` skill as a scheduled run, following `Routine.md`. The skill checks `<tracker> window` and stops when closed.
+- **Review**: on the review days, inside the review hours. Prompt: run the `operator:review` skill as a scheduled run, following `Routine.md`. The skill checks `<tracker> window` and stops when closed.
 - **Health check** (optional): once a week, on the first review day. Prompt: run `<tracker> window` (stop if closed), then `<tracker> health`; if it prints problems, tell the user through the notification route below; if `OK`, stay silent.
 
 Scheduled tasks only run while the desktop app is open and the computer awake. Say so.
@@ -52,7 +52,7 @@ App notifications don't show while the user is active in the app, and scheduled 
 
 | Option | How it works |
 |---|---|
-| **Standing review session** | Start one session titled "Evidence review" (the session tools, `user_asked`) whose brief is: when a message from the scheduled review arrives, run `matrix-reloaded:review` from the review step and end waiting on the user. Save its ID with `<tracker> config review-session <id>`. Each run collects, then messages that session; it shows in the sidebar as waiting until handled. |
+| **Standing review session** | Start one session titled "Evidence review" (the session tools, `user_asked`) whose brief is: when a message from the scheduled review arrives, run `operator:review` from the review step and end waiting on the user. Save its ID with `<tracker> config review-session <id>`. Each run collects, then messages that session; it shows in the sidebar as waiting until handled. |
 | **Note in Obsidian** | Each run writes `Review waiting.md` in the tracker folder: date, new and open drafts, what's due. The review sets it to "Nothing waiting." when done. |
 
 Either way, the run also sends a push notification for when the app is in the background.
@@ -81,4 +81,4 @@ Either way, the run also sends a push notification for when the app is in the ba
 - <Standing review session (`review-session` in Config) | Review waiting.md>
 ```
 
-Then show the user a summary and suggest `/matrix-reloaded:backfill` if they want earlier months.
+Then show the user a summary and suggest `/operator:backfill` if they want earlier months.

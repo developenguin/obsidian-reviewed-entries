@@ -1,15 +1,15 @@
 ---
 name: review
-description: Run the Matrix Reloaded evidence review - collect new activity from the user's sources as in Routine.md, walk the user through the draft entries, and on the weekly day also focus statements, gap questions and a weekly summary. Use when a scheduled review runs, a message from the scheduled review arrives in the standing review session, the user runs /matrix-reloaded:review, or asks to review evidence drafts or do the weekly part.
+description: Run the evidence review - collect new activity from the user's sources as in Routine.md, walk the user through the draft entries, and on the weekly day also focus goals, gap questions and a weekly summary. Use when a scheduled review runs, a message from the scheduled review arrives in the standing review session, the user runs /operator:review, or asks to review evidence drafts or do the weekly part.
 ---
 
 # Review evidence
 
 Read `${CLAUDE_PLUGIN_ROOT}/references/ai-policy.md` and `${CLAUDE_PLUGIN_ROOT}/references/evidence-rules.md` first and follow them throughout.
 
-`<tracker>` is `node "${CLAUDE_PLUGIN_ROOT}/scripts/tracker.mjs"`. `Routine.md` in the tracker folder (`<tracker> where`) lists the user's sources, schedule and signal. If it's missing, review drafts only (steps 3–4) and suggest `/matrix-reloaded:routine`.
+`<tracker>` is `node "${CLAUDE_PLUGIN_ROOT}/scripts/tracker.mjs"`. `Routine.md` in the tracker folder (`<tracker> where`) lists the user's sources, schedule and signal. If it's missing, review drafts only (steps 3–4) and suggest `/operator:routine`.
 
-The **review** is short: collect, go through drafts, ask about anything else. The **weekly part** adds focus statements, gap questions and a summary. Do the weekly part when `<tracker> health` reports `weekly: not finished`, or when the user asks for it.
+The **review** is short: collect, go through drafts, ask about anything else. The **weekly part** adds focus goals, gap questions and a summary. Do the weekly part when `<tracker> health` reports `weekly: not finished`, or when the user asks for it.
 
 ## 1. Scheduled runs only: check the time
 
@@ -35,7 +35,7 @@ For each automatic source in Routine.md, from its cursor up to now (`date -u +%Y
 
 ## 3. Review the drafts
 
-`<tracker> drafts` lists every draft, grouped by statement. Show them group by group, short: number, title, linked items by their text, bullets. Ask the user to confirm, edit or reject each; accept short answers ("all OK", "reject 3", "2: it was the Circle Lead's idea"). When the user doubts a link, run `<tracker> explain <id>` and re-judge before proposing another link or dropping it.
+`<tracker> drafts` lists every draft, grouped by goal. Show them group by group, short: number, title, linked items by their text, bullets. Ask the user to confirm, edit or reject each; accept short answers ("all OK", "reject 3", "2: it was the Circle Lead's idea"). When the user doubts a link, run `<tracker> explain <id>` and re-judge before proposing another link or dropping it.
 
 - Confirm: `<tracker> status <id> confirmed`. Reject: `<tracker> status <id> rejected`.
 - Edit: as in evidence-rules.md, then confirm.
@@ -46,19 +46,19 @@ For each automatic source in Routine.md, from its cursor up to now (`date -u +%Y
 1. When the user pastes answers to a prompt: check its log for skipped searches or capped results, and give a short follow-up prompt for those. Skip items already logged (same link) and routine ones; propose entries from the rest, with full text. Add approved ones as `confirmed`. Then move that source's cursor to today.
 2. Ask in one short question whether anything else happened worth logging: meetings, 1:1s, help given or received. On a weekly-part day, ask about the whole week.
 
-## 5. Weekly part: focus statements
+## 5. Weekly part: focus goals
 
-Read `focus` from `<tracker> config`. For each, show its coverage (`<tracker> items`) and ask whether anything happened for it this week. Then ask whether the focus should change. Set it with `<tracker> config focus "[[<file path without .md>#^<id>|<statement text>]]" …` (or `[]`).
+Read `focus` from `<tracker> config`. For each, show its coverage (`<tracker> items`) and ask whether anything happened for it this week. Then ask whether the focus should change. Set it with `<tracker> config focus "[[<file path without .md>#^<id>|<goal text>]]" …` (or `[]`).
 
 ## 6. Weekly part: fill gaps
 
-`<tracker> gaps 3`. For 2–3 of them, run `<tracker> explain <ids…>` and ask a concrete question based on the missing facets and the explanation, naming the statement by its text. Ask for the kinds of evidence that are missing (for feedback: positive or critical, role-based or personal). Log answers as in step 4.
+`<tracker> gaps 3`. For 2–3 of them, run `<tracker> explain <ids…>` and ask a concrete question based on the missing facets and the explanation, naming the goal by its text. Ask for the kinds of evidence that are missing (for feedback: positive or critical, role-based or personal). Log answers as in step 4.
 
 Record what you asked: `<tracker> config recently-asked <ids asked now> <ids asked last time>`, at most 6 IDs.
 
 ## 7. Finish
 
 1. `<tracker> config last-review-at <now, ISO UTC>`; after the weekly part also `last-weekly-at`.
-2. `<tracker> check` must print `No warnings.` Fix or report what it lists; for `#text-changed` items, suggest `/matrix-reloaded:resolve`.
+2. `<tracker> check` must print `No warnings.` Fix or report what it lists; for `#text-changed` items, suggest `/operator:resolve`.
 3. If the signal is the Obsidian note, set `Review waiting.md` to "Nothing waiting."
-4. Review: one line with confirmed, edited and rejected, and drafts left. Weekly part: a short summary of the week's confirmed, edited and rejected entries; coverage (covered facets now vs. a week ago, from `<tracker> items`); focus statements and their coverage; what's open.
+4. Review: one line with confirmed, edited and rejected, and drafts left. Weekly part: a short summary of the week's confirmed, edited and rejected entries; coverage (covered facets now vs. a week ago, from `<tracker> items`); focus goals and their coverage; what's open.
