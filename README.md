@@ -40,6 +40,10 @@ It takes absolute paths, several separated by `:` (`;` on Windows). A variable s
 
 `fixture/` is a small test vault: add its absolute path to `OBSIDIAN_VAULT`, build, then open the folder as a vault in Obsidian.
 
+### Claude plugin
+
+[`claude-plugin/`](claude-plugin) is a Claude Code plugin for one use of this format: evidence for Luscii's Matrix Reloaded statements. Its command-line tools are written in [`cli/`](cli), share `src/model.ts` with the Obsidian plugin, and are bundled into `claude-plugin/scripts/` with `yarn build:cli`. Commit the bundle together with the source.
+
 ### Layout
 
 | File | Role |
@@ -49,3 +53,4 @@ It takes absolute paths, several separated by `:` (`;` on Windows). A variable s
 | `src/entry-modal.ts` | Form to edit or add an entry, with the item picker. |
 | `src/resolve-modal.ts` | Check the entries of an item whose text changed, then clear its tag. |
 | `src/main.ts` | Obsidian glue: code block, command, file events. |
+| `cli/` | Command-line tools for the Claude plugin, bundled into `claude-plugin/scripts/`. |

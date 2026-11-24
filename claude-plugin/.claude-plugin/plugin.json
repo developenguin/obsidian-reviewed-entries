@@ -1,0 +1,10 @@
+{
+  "name": "matrix-reloaded",
+  "version": "0.1.0",
+  "description": "Collect evidence for your Luscii Matrix Reloaded compensation statements in an Obsidian vault: set up the tracker, log and review evidence, and run a daily or weekly review routine. Evidence only: no grading, no salary.",
+  "author": {
+    "name": "developenguin"
+  },
+  "repository": "https://github.com/developenguin/obsidian-reviewed-entries",
+  "keywords": ["matrix-reloaded", "evidence", "compensation", "obsidian", "luscii"]
+}
