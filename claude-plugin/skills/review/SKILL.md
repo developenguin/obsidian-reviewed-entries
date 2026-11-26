@@ -22,9 +22,9 @@ Before collecting, hand out the prompts of any source the user runs themselves (
 For each automatic source in Routine.md, from its cursor up to now (`date -u +%Y-%m-%dT%H:%M:%SZ`):
 
 1. Collect as Routine.md describes. A long gap (after a holiday): split by calendar month.
-2. Pick what counts as evidence (evidence-rules.md, and the source's own notes). One piece of work is one entry, even when several sources show it; work that continues an existing entry gets a bullet there.
+2. Pick what counts as evidence: the kinds of work under "Work to track" in Routine.md, evidence-rules.md, and the source's own notes. One piece of work is one entry, even when several sources show it; work that continues an existing entry gets a bullet there.
 3. Add new entries as drafts in one `<tracker> add -` call.
-4. On success, move the cursor (`<tracker> config <cursor> <until>`) and set `<tracker> config last-mine-status ok`. On failure, `<tracker> config last-mine-status "failed: <short reason> (<date>)"`, leave the cursor, tell the user and go on.
+4. On success, move the cursor (`<tracker> config <cursor> <until>`) and set `<tracker> config last-collect-status ok`. On failure, `<tracker> config last-collect-status "failed: <short reason> (<date>)"`, leave the cursor, tell the user and go on.
 
 **Scheduled runs:** after collecting, use the signal from Routine.md, then stop. Never confirm or reject drafts yourself.
 
@@ -39,7 +39,7 @@ For each automatic source in Routine.md, from its cursor up to now (`date -u +%Y
 
 - Confirm: `<tracker> status <id> confirmed`. Reject: `<tracker> status <id> rejected`.
 - Edit: as in evidence-rules.md, then confirm.
-- Bullets that say "not merged" or "pending": ask whether that changed.
+- Bullets that say something wasn't finished yet ("pending", "not merged", "awaiting a decision"): ask whether that changed.
 
 ## 4. Prompt answers and anything else
 

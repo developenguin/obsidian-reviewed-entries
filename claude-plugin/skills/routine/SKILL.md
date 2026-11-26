@@ -11,9 +11,23 @@ Read `${CLAUDE_PLUGIN_ROOT}/references/ai-policy.md` first. Every source must pa
 
 The result is `Routine.md` in the tracker folder: the user's own collection plan, which the review and backfill skills follow. Nothing in it is prebuilt; you work it out with the user. If it exists, show it and ask what to change.
 
-## 1. Sources
+## 1. Work to track
 
-Ask where the user's evidence happens. Offer these kinds, and let them add others:
+Ask what kinds of work the user wants evidence of. Guide them with examples and let them add their own:
+
+- changes they make: pull requests, configuration, content
+- documents: proposals, analyses, specs, write-ups
+- tools they build for themselves or others
+- sharing information: explanations, posts, talks, answering questions
+- projects they drive or contribute to
+- governance and role work: proposals, tensions processed, roles changed
+- helping, coaching and feedback, given or received
+
+For each, ask what is routine (not worth logging) and what makes one notable. This decides what the review proposes, so keep it in the user's words.
+
+## 2. Sources
+
+Ask where that work happens. Offer these kinds, and let them add others:
 
 | Kind | Examples | Typical way to collect |
 |---|---|---|
@@ -32,10 +46,10 @@ For each source the user picks, decide with them:
    - *A small collector script*: only if the user wants one. Write it with them into `Collectors/` in the tracker folder, read-only, printing JSON for Claude to judge. Test it once on a short period.
    - *A prompt the user runs elsewhere*: write the prompt with them for that tool's limits (small date windows, one kind of search per prompt, ask it to stop and continue instead of skipping). The review hands it out with dates filled in.
 3. **What counts**: what in this source is evidence and what is routine noise.
-4. **Cursor**: the Config property that records how far it's been collected, e.g. `last-mined-at` for automatic sources, or `last-<source>-at` for manual ones. Set it to today, or to the start of the backfill.
+4. **Cursor**: the Config property that records how far it's been collected, e.g. `last-collected-at`, or `last-<source>-at` when sources are collected separately. Set it to today, or to the start of the backfill. Add the cursors of automatic sources to `health-cursors` (`<tracker> config health-cursors <keys…>`), so the health check notices when one stalls.
 5. **Duplicates**: what the entry `ref` is for this source (a URL, an ID), so the tracker skips what's logged.
 
-## 2. Schedule
+## 3. Schedule
 
 Ask how often to review (daily on review days, or weekly) and confirm `review-days`, `review-hours`, `weekly` and `timezone` in Config (`<tracker> config`).
 
@@ -46,7 +60,7 @@ Reviews run as scheduled tasks in the Claude desktop app. Create them with the s
 
 Scheduled tasks only run while the desktop app is open and the computer awake. Say so.
 
-## 3. How the user hears a review is waiting
+## 4. How the user hears a review is waiting
 
 App notifications don't show while the user is active in the app, and scheduled runs can't be pinned. Let the user choose a persistent signal:
 
@@ -57,10 +71,13 @@ App notifications don't show while the user is active in the app, and scheduled 
 
 Either way, the run also sends a push notification for when the app is in the background.
 
-## 4. Write Routine.md
+## 5. Write Routine.md
 
 ```markdown
 # Routine
+
+## Work to track
+- <kind of work>: notable when <…>; routine: <…>
 
 ## Sources
 

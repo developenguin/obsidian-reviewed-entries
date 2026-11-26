@@ -6,6 +6,20 @@ Each goal can split into **facets**: parts of the same goal that each need their
 
 You work with it by talking to Claude (`/operator:setup` to start) and, if you use Obsidian, by looking at the overview there. You never run commands or build anything.
 
+## Skills
+
+| Skill | Does |
+|---|---|
+| `/operator:setup` | Create the tracker folder, optionally install the Obsidian plugin, and set up your goals and facets: from your own words, or imported from the Matrix Reloaded sheet. Also adds goals later and re-imports the sheet. |
+| `/operator:routine` | Choose what work to track, where it happens and how to collect it, schedule reviews, and choose how you hear a review is waiting. Writes `Routine.md`. |
+| `/operator:backfill` | Fill in evidence from earlier months, one month at a time. |
+| `/operator:log-evidence` | Log evidence now, from this session or from your own words. |
+| `/operator:review` | Collect new activity, review drafts; weekly: focus goals, gap questions, summary. |
+| `/operator:resolve` | Fix changed goals after a re-import, and tracker warnings. |
+| `offer-logging` | Not invoked: Claude offers to log evidence after notable work. |
+
+All skills follow [`references/ai-policy.md`](references/ai-policy.md) (Luscii's AI policy: approved connections only, read-only, no secrets, patient data or colleagues' names in evidence) and [`references/evidence-rules.md`](references/evidence-rules.md). Nothing in the plugin collects from a specific source: the routine skill works out with you how to collect from yours, and keeps that in your tracker folder.
+
 ## Requirements
 
 - Claude Code in the desktop app (scheduled reviews, and reading your Claude Code sessions as a source)

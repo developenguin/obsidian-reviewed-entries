@@ -1,6 +1,6 @@
 ---
 name: offer-logging
-description: After finishing notable work in any session, offer once, in one line, to log it as evidence. Notable means shipped or merged work, a hard problem solved, a decision or design the user drove, an analysis, helping or coaching someone, giving or acting on feedback, or improving a process or Holacracy governance. Use at the end of such a piece of work, when the user has the Matrix Reloaded tracker set up. Not for routine or trivial tasks.
+description: After finishing notable work in any session, offer once, in one line, to log it as evidence. Notable means work of a kind the user tracks, such as finished or delivered work, a project milestone, a hard problem solved, a decision or design the user drove, an analysis, helping or coaching someone, giving or acting on feedback, or improving a process or Holacracy governance. Use at the end of such a piece of work, when the user has the Matrix Reloaded tracker set up. Not for routine or trivial tasks.
 ---
 
 # Offer to log evidence
@@ -9,7 +9,7 @@ When a piece of notable work is done in this session, end your reply with one li
 
 > Want me to log this as evidence (`/operator:log-evidence`)?
 
-- Notable: shipped or merged work, a hard problem solved, a decision or design the user drove, an analysis, helping or coaching someone, giving or acting on feedback, improving a process or governance.
+- Notable: work of a kind listed under "Work to track" in the tracker's `Routine.md` (in the folder `node "${CLAUDE_PLUGIN_ROOT}/scripts/tracker.mjs" where` prints), such as finished or delivered work, a project milestone, a hard problem solved, a decision or design the user drove, an analysis, helping or coaching someone, giving or acting on feedback, improving a process or governance.
 - Offer at most once per piece of work. Don't offer for routine or trivial tasks, or again after the user declined.
 - Only offer when the tracker is set up: `node "${CLAUDE_PLUGIN_ROOT}/scripts/tracker.mjs" where` succeeds. Check silently; if it fails, don't offer.
 - Never log without a yes. On a yes, follow the `operator:log-evidence` skill.

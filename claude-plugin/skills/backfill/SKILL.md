@@ -9,11 +9,11 @@ Read `${CLAUDE_PLUGIN_ROOT}/references/ai-policy.md` and `${CLAUDE_PLUGIN_ROOT}/
 
 `<tracker>` is `node "${CLAUDE_PLUGIN_ROOT}/scripts/tracker.mjs"`. Sources come from `Routine.md` in the tracker folder; if it's missing, suggest `/operator:routine` first.
 
-The backfill fills history from `mining-start` (or `backfilled-through`, if a backfill already started) up to `backfill-until`, where the regular reviews took over. It never moves the regular cursors.
+The backfill fills history from `backfill-start` (or `backfilled-through`, if a backfill already started) up to `backfill-until`, where the regular reviews took over. It never moves the regular cursors.
 
 ## Start
 
-If `mining-start` and `backfill-until` aren't set, ask how far back to go. The guidelines look at the last 8–12 weeks, so a few months is usually enough; older evidence still helps show consistency. Set `mining-start` (YYYY-MM-DD) and `backfill-until` (the moment regular reviews started, ISO UTC).
+If `backfill-start` and `backfill-until` aren't set, ask how far back to go. The guidelines look at the last 8–12 weeks, so a few months is usually enough; older evidence still helps show consistency. Set `backfill-start` (YYYY-MM-DD) and `backfill-until` (the moment regular reviews started, ISO UTC).
 
 ## Per calendar month, oldest first
 

@@ -5,8 +5,9 @@ Shared by every skill that proposes, writes or edits evidence. `<tracker>` is `n
 ## What counts
 
 - Evidence is an objective log, not a brag sheet. Log what **the user** did: decided, designed, analysed, built, reviewed, explained, pushed back on, coached, improved, gave or acted on feedback. Work done with Claude's help counts as theirs; describe their role, not Claude's.
+- What kinds of work count is the user's choice: see "Work to track" in `Routine.md`. Without it, ask.
 - Credit others' groundwork in the bullets. Describe outcomes as they were, including "not live yet", "outcome unknown" or "the proposal was rejected".
-- Skip routine work: version bumps, dependency updates, small fixes, ordinary tickets without a notable decision, sessions that only asked a question.
+- Skip routine work: what `Routine.md` lists as routine, and in general small fixes, ordinary tasks without a notable decision, and sessions that only asked a question.
 - Small examples (one library choice, one quick fix) are worth an entry only while the facet has no stronger evidence.
 - Requests that reach the user through a role they hold count as recognition of their expertise too.
 
@@ -30,13 +31,13 @@ If the tracker has a guidelines note, `<tracker> explain` prints it: follow it. 
 | `date` | The day the work happened (merge date for PRs), `YYYY-MM-DD`. |
 | `title` | At most 8 words, past tense, verb first. |
 | `body` | 2–4 short bullets in plain language: what, why, result. |
-| `source` | Where it happened, as a Markdown link if there is one, e.g. `[org/repo#123](url)`, else a plain description such as `Claude Code session: <project folder>` or `Slack DM`. |
-| `ref` | A stable key that prevents duplicates: the URL of the PR, issue or message; else `claude-code:<session id>`, or `manual:<date>-<short-slug>`. |
+| `source` | Where it happened, as a Markdown link if there is one, e.g. `[org/repo#123](url)` or `[Proposal: …](url)`, else a plain description such as `Claude Code session: <project folder>` or `Slack DM`. |
+| `ref` | A stable key that prevents duplicates: the URL of the work (a PR, ticket, document or message); else `claude-code:<session id>`, or `manual:<date>-<short-slug>`. |
 | `status` | `draft` by default. `confirmed` only when the user wrote or approved the text and links. |
 
-- Work that continues an existing entry (a follow-up PR, the next step) gets a bullet in that entry instead of a new one.
+- Work that continues an existing entry (a follow-up, the next phase of a project) gets a bullet in that entry instead of a new one.
 - Feedback entries say whether the feedback was positive or critical, and whether it was role-based or personal.
-- Reviews of others' work (code reviews, document reviews) go into one entry per month, ref `<kind>-reviews:YYYY-MM`, for substantial reviews only: design feedback, caught bugs, coaching.
+- Reviews of others' work (pull requests, documents, proposals) go into one entry per month, ref `<kind>-reviews:YYYY-MM`, for substantial reviews only: design feedback, caught bugs, coaching.
 - Keep the organisation's own terms as they are, and don't translate them. At Luscii: circle, tension, ZorgBijJou; Holacracy constitution v5, so Circle Lead, not Lead Link.
 
 ## Adding entries

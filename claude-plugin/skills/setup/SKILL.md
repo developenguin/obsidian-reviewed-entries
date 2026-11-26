@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Set up the Operator evidence tracker in the user's Obsidian vault - create the tracker folder, install the Reviewed Entries Obsidian plugin, and set up the goals evidence is logged against (written from what the user describes, or imported from Luscii's Matrix Reloaded sheet), split into facets. Also adds or changes goals later, and re-imports the Matrix sheet. Use when the user wants to start logging evidence, runs /operator:setup, wants to add or change goals, or has a new Matrix Reloaded sheet or profile.
+description: Set up the Operator evidence tracker - create the tracker folder (in an Obsidian vault or any folder), optionally install the Reviewed Entries Obsidian plugin, and set up the goals evidence is logged against (written from what the user describes, or imported from Luscii's Matrix Reloaded sheet), split into facets. Also adds or changes goals later, and re-imports the Matrix sheet. Use when the user wants to start logging evidence, runs /operator:setup, wants to add or change goals, or has a new Matrix Reloaded sheet or profile.
 ---
 
 # Set up the evidence tracker
@@ -14,10 +14,12 @@ If `<tracker> where` already prints a location, the tracker exists: ask whether 
 ## 1. Check the basics
 
 - `node --version` must be 18 or newer. If Node is missing, tell the user to install it (nodejs.org, or their package manager) and stop.
-- Ask which Obsidian vault to use (its folder path) and a name for the tracker folder, default `Evidence`.
+- Ask whether the user uses Obsidian. If so, ask which vault (its folder path); if not, ask for any folder to keep the tracker's Markdown files in. Then a name for the tracker folder, default `Evidence`.
 - `<tracker> init --vault "<vault path>" [--folder "<name>"]`. It creates `Overview.md`, `Config.md`, `Goals/`, `Log/` and `Source/` in the tracker folder, and saves the location in `~/.operator.json`. It never overwrites existing notes.
 
-## 2. Install the Obsidian plugin
+## 2. Install the Obsidian plugin (if the user uses Obsidian)
+
+Skip this step without Obsidian: Claude reads and writes the tracker's files either way, and `<tracker> items` shows coverage.
 
 The overview, inbox and review buttons come from the **Reviewed Entries** Obsidian plugin. It isn't in Obsidian's community catalogue, so it's installed from its GitHub releases.
 
