@@ -1,6 +1,6 @@
-// Generated from cli/ by `yarn build:cli`. Do not edit.
+// Generated from claude-plugin/src by `yarn build:plugin`. Do not edit.
 
-// cli/tracker.ts
+// claude-plugin/src/tracker.ts
 import { existsSync as existsSync2, mkdirSync, readFileSync as readFileSync2, appendFileSync, writeFileSync as writeFileSync2 } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { dirname, isAbsolute, join as join2, resolve } from "node:path";
@@ -356,7 +356,7 @@ function countLeaves(node) {
   return node.children.map(countLeaves).reduce((a, b) => ({ covered: a.covered + b.covered, total: a.total + b.total }));
 }
 
-// cli/vault.ts
+// claude-plugin/src/vault.ts
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -484,7 +484,7 @@ var Vault = class {
   }
 };
 
-// cli/tracker.ts
+// claude-plugin/src/tracker.ts
 var SENSITIVE = [
   [/\b(gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9-]{20,}|AKIA[0-9A-Z]{16}|xox[abpr]-[A-Za-z0-9-]+)/, "API token"],
   [/-----BEGIN [A-Z ]*PRIVATE KEY-----/, "private key"],
@@ -815,6 +815,14 @@ function reviewWindow() {
     console.log("open");
   }
 }
+var LEGACY = {
+  "last-collected-at": "last-mined-at",
+  "last-collect-status": "last-mine-status",
+  "backfill-start": "mining-start"
+};
+function setting(vault, key) {
+  return vault.setting(key) || (LEGACY[key] ? vault.setting(LEGACY[key]) : "");
+}
 function health() {
   const vault = new Vault();
   const plan = schedule(vault);
@@ -828,14 +836,19 @@ function health() {
   if (!weekly || weekly < due) {
     problems.push(`weekly: not finished since ${WEEKDAYS[plan.weeklyDay - 1]} ${due} (last: ${weekly ?? "never"})`);
   }
-  if (vault.setting("last-mine-status").startsWith("failed")) {
-    problems.push(`collect: ${vault.setting("last-mine-status")}`);
+  const status2 = setting(vault, "last-collect-status");
+  if (status2.startsWith("failed")) {
+    problems.push(`collect: ${status2}`);
   }
-  const minedThrough = vault.setting("last-mined-at");
-  if (!minedThrough || now.getTime() - new Date(minedThrough).getTime() > 7 * 864e5) {
-    problems.push(`collect: nothing collected since ${minedThrough ? minedThrough.slice(0, 10) : "ever"}`);
+  const listed = vault.list("health-cursors");
+  const cursors = listed.length ? listed : setting(vault, "last-collected-at") ? ["last-collected-at"] : [];
+  for (const key of cursors) {
+    const at = setting(vault, key);
+    if (!at || now.getTime() - new Date(at).getTime() > 7 * 864e5) {
+      problems.push(`collect: ${key} not moved since ${at ? at.slice(0, 10) : "ever"}`);
+    }
   }
-  const backfilled = vault.setting("backfilled-through") || vault.setting("mining-start");
+  const backfilled = vault.setting("backfilled-through") || setting(vault, "backfill-start");
   const backfillUntil = vault.setting("backfill-until");
   if (backfilled && backfillUntil && new Date(backfilled) < new Date(backfillUntil)) {
     problems.push(`backfill: done through ${backfilled.slice(0, 10)}, needed up to ${backfillUntil.slice(0, 10)}`);
@@ -870,8 +883,9 @@ Settings for the evidence tracker. Claude maintains most of them; edit the ones 
 
 - **timezone, review-days, review-hours, weekly** (yours): when scheduled reviews may run, and when the weekly part is due (day and hour).
 - **focus** (yours): goals to work on this period. Ask Claude to set them.
-- **last-mined-at, last-mine-status**: how far scheduled runs have collected activity, and whether the last run worked.
-- **mining-start, backfill-until, backfilled-through**: the optional backfill of older history.
+- **last-collected-at, last-collect-status**: how far scheduled runs have collected activity, and whether the last run worked. Sources may have their own cursors (see \`Routine.md\`).
+- **health-cursors**: the cursors of automatic sources that the health check watches.
+- **backfill-start, backfill-until, backfilled-through**: the optional backfill of older history.
 - **last-review-at / last-weekly-at**: when the review and the weekly part last finished.
 - **recently-asked**: goals the last weekly parts asked about, so questions rotate.
 - **base-profile / growth-profile**: only for the Matrix Reloaded importer: sheet names as in the sheet in \`Source/\`, e.g. \`Expert - core (7)\`.
@@ -885,8 +899,8 @@ function init(args) {
   const vaultPath = option("vault") ?? fail("Usage: tracker init --vault <absolute path> [--folder <name>]");
   const folder = option("folder") ?? "Evidence";
   const root = isAbsolute(vaultPath) ? vaultPath : resolve(vaultPath);
-  if (!existsSync2(join2(root, ".obsidian"))) {
-    fail(`${root} is not an Obsidian vault (no .obsidian folder).`);
+  if (!existsSync2(root)) {
+    fail(`${root} doesn't exist.`);
   }
   const paths = notes(folder);
   for (const dir of [`${folder}/Goals`, `${folder}/Log`, paths.source]) {

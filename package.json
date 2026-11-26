@@ -8,7 +8,7 @@
 		"build": "tsc --noEmit && node esbuild.config.mjs",
 		"dev": "node esbuild.config.mjs --watch",
 		"test": "node --test",
-		"build:cli": "tsc -p cli --noEmit && node cli/build.mjs"
+		"build:plugin": "tsc -p claude-plugin/src --noEmit && node claude-plugin/src/build.mjs"
 	},
 	"packageManager": "yarn@4.18.1",
 	"devDependencies": {

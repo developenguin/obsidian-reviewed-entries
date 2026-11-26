@@ -8,12 +8,12 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { buildDb, parseConfig, type Db, type DbConfig, type SourceFile } from '../src/model.ts';
+import { buildDb, parseConfig, type Db, type DbConfig, type SourceFile } from '../../src/model.ts';
 
 export const SETTINGS_FILE = join(homedir(), '.operator.json');
 
 export interface Location {
-	/** Absolute path of the Obsidian vault. */
+	/** Absolute path of the vault: an Obsidian vault, or any folder. */
 	vault: string;
 	/** Tracker folder, relative to the vault. */
 	folder: string;

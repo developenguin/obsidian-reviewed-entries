@@ -1,6 +1,6 @@
 // Command-line helper for the Operator evidence skills.
 //
-//   tracker init --vault <path> [--folder <name>]  set up the tracker folder
+//   tracker init --vault <path> [--folder <name>]  set up the tracker folder in a vault (or any folder)
 //   tracker where                     vault and tracker folder in use
 //   tracker items [--json]            goals and facets, with coverage
 //   tracker add <file.json|->         append entries (see AddInput)
@@ -16,7 +16,7 @@
 import { existsSync, mkdirSync, readFileSync, appendFileSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
-import { setEntryStatus, STATUSES, type Node, type Status } from '../src/model.ts';
+import { setEntryStatus, STATUSES, type Node, type Status } from '../../src/model.ts';
 import { fail, notes, setProperty, SETTINGS_FILE, Vault } from './vault.ts';
 
 interface AddInput {
@@ -480,6 +480,17 @@ function reviewWindow(): void {
 	}
 }
 
+/** Earlier names of settings, still read so existing trackers keep working. */
+const LEGACY: Record<string, string> = {
+	'last-collected-at': 'last-mined-at',
+	'last-collect-status': 'last-mine-status',
+	'backfill-start': 'mining-start',
+};
+
+function setting(vault: Vault, key: string): string {
+	return vault.setting(key) || (LEGACY[key] ? vault.setting(LEGACY[key]) : '');
+}
+
 function health(): void {
 	const vault = new Vault();
 	const plan = schedule(vault);
@@ -497,19 +508,28 @@ function health(): void {
 		problems.push(`weekly: not finished since ${WEEKDAYS[plan.weeklyDay - 1]} ${due} (last: ${weekly ?? 'never'})`);
 	}
 
-	if (vault.setting('last-mine-status').startsWith('failed')) {
-		problems.push(`collect: ${vault.setting('last-mine-status')}`);
+	const status = setting(vault, 'last-collect-status');
+
+	if (status.startsWith('failed')) {
+		problems.push(`collect: ${status}`);
 	}
 
-	// Daily runs should keep last-mined-at within a working week or so.
-	const minedThrough = vault.setting('last-mined-at');
+	// Cursors of automatic sources should move within a week or so. The routine
+	// skill lists them in `health-cursors`; without that list, only the general
+	// cursor is checked, and only once something has been collected.
+	const listed = vault.list('health-cursors');
+	const cursors = listed.length ? listed : setting(vault, 'last-collected-at') ? ['last-collected-at'] : [];
 
-	if (!minedThrough || now.getTime() - new Date(minedThrough).getTime() > 7 * 86_400_000) {
-		problems.push(`collect: nothing collected since ${minedThrough ? minedThrough.slice(0, 10) : 'ever'}`);
+	for (const key of cursors) {
+		const at = setting(vault, key);
+
+		if (!at || now.getTime() - new Date(at).getTime() > 7 * 86_400_000) {
+			problems.push(`collect: ${key} not moved since ${at ? at.slice(0, 10) : 'ever'}`);
+		}
 	}
 
-	// The backfill fills history up to a fixed date: where daily collection started.
-	const backfilled = vault.setting('backfilled-through') || vault.setting('mining-start');
+	// The backfill fills history up to a fixed date: where regular reviews started.
+	const backfilled = vault.setting('backfilled-through') || setting(vault, 'backfill-start');
 	const backfillUntil = vault.setting('backfill-until');
 
 	if (backfilled && backfillUntil && new Date(backfilled) < new Date(backfillUntil)) {
@@ -548,8 +568,9 @@ Settings for the evidence tracker. Claude maintains most of them; edit the ones 
 
 - **timezone, review-days, review-hours, weekly** (yours): when scheduled reviews may run, and when the weekly part is due (day and hour).
 - **focus** (yours): goals to work on this period. Ask Claude to set them.
-- **last-mined-at, last-mine-status**: how far scheduled runs have collected activity, and whether the last run worked.
-- **mining-start, backfill-until, backfilled-through**: the optional backfill of older history.
+- **last-collected-at, last-collect-status**: how far scheduled runs have collected activity, and whether the last run worked. Sources may have their own cursors (see \`Routine.md\`).
+- **health-cursors**: the cursors of automatic sources that the health check watches.
+- **backfill-start, backfill-until, backfilled-through**: the optional backfill of older history.
 - **last-review-at / last-weekly-at**: when the review and the weekly part last finished.
 - **recently-asked**: goals the last weekly parts asked about, so questions rotate.
 - **base-profile / growth-profile**: only for the Matrix Reloaded importer: sheet names as in the sheet in \`Source/\`, e.g. \`Expert - core (7)\`.
@@ -566,8 +587,9 @@ function init(args: string[]): void {
 	const folder = option('folder') ?? 'Evidence';
 	const root = isAbsolute(vaultPath) ? vaultPath : resolve(vaultPath);
 
-	if (!existsSync(join(root, '.obsidian'))) {
-		fail(`${root} is not an Obsidian vault (no .obsidian folder).`);
+	// An Obsidian vault shows the overview; any other folder works with Claude alone.
+	if (!existsSync(root)) {
+		fail(`${root} doesn't exist.`);
 	}
 
 	const paths = notes(folder);

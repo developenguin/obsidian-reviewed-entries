@@ -17,7 +17,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { readOds, type Sheet } from './ods.ts';
-import { parseItems, type Item } from '../src/model.ts';
+import { parseItems, type Item } from '../../src/model.ts';
 import { fail, frontmatter, setProperty, Vault } from './vault.ts';
 
 const vault = new Vault();

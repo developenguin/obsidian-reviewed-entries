@@ -42,7 +42,7 @@ It takes absolute paths, several separated by `:` (`;` on Windows). A variable s
 
 ### Claude plugin
 
-[`claude-plugin/`](claude-plugin) is **Operator**, a Claude Code plugin that uses this format to log evidence of work against goals, with an optional importer for Luscii's Matrix Reloaded statements. Its command-line tools are written in [`cli/`](cli), share `src/model.ts` with the Obsidian plugin, and are bundled into `claude-plugin/scripts/` with `yarn build:cli`. Commit the bundle together with the source.
+[`claude-plugin/`](claude-plugin) is **Operator**, a Claude Code plugin that uses this format to log evidence of work against goals, with an optional importer for Luscii's Matrix Reloaded statements. Its scripts are written in `claude-plugin/src/`, share `src/model.ts` with the Obsidian plugin, and are bundled into `claude-plugin/scripts/` with `yarn build:plugin`. Commit the bundle together with the source. Users never build or run them; Claude does.
 
 ### Layout
 
@@ -53,4 +53,4 @@ It takes absolute paths, several separated by `:` (`;` on Windows). A variable s
 | `src/entry-modal.ts` | Form to edit or add an entry, with the item picker. |
 | `src/resolve-modal.ts` | Check the entries of an item whose text changed, then clear its tag. |
 | `src/main.ts` | Obsidian glue: code block, command, file events. |
-| `cli/` | Command-line tools for the Claude plugin, bundled into `claude-plugin/scripts/`. |
+| `claude-plugin/src/` | Scripts for the Claude plugin, bundled into `claude-plugin/scripts/`. |

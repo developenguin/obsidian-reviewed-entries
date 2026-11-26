@@ -1,10 +1,10 @@
-// Generated from cli/ by `yarn build:cli`. Do not edit.
+// Generated from claude-plugin/src by `yarn build:plugin`. Do not edit.
 
-// cli/import-matrix.ts
+// claude-plugin/src/import-matrix.ts
 import { existsSync as existsSync2, mkdirSync, readdirSync as readdirSync2, readFileSync as readFileSync3, writeFileSync as writeFileSync2 } from "node:fs";
 import { dirname, join as join2 } from "node:path";
 
-// cli/ods.ts
+// claude-plugin/src/ods.ts
 import { readFileSync } from "node:fs";
 import { inflateRawSync } from "node:zlib";
 function unzipEntry(zip, name) {
@@ -410,7 +410,7 @@ function countLeaves(node) {
   return node.children.map(countLeaves).reduce((a, b) => ({ covered: a.covered + b.covered, total: a.total + b.total }));
 }
 
-// cli/vault.ts
+// claude-plugin/src/vault.ts
 import { existsSync, readdirSync, readFileSync as readFileSync2, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -538,7 +538,7 @@ var Vault = class {
   }
 };
 
-// cli/import-matrix.ts
+// claude-plugin/src/import-matrix.ts
 var vault = new Vault();
 var STATEMENTS = vault.path(vault.load().config.itemsFolder);
 var GUIDELINES_NAME = "Rating guidelines.md";
